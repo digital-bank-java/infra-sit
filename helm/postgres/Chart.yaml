@@ -1,0 +1,7 @@
+apiVersion: v2
+name: postgres
+description: Shared PostgreSQL for the local Digital Bank Java SIT environment
+type: application
+version: 0.1.0
+appVersion: "16"
+
