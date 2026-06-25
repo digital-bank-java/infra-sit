@@ -1,0 +1,12 @@
+.DS_Store
+.idea/
+.vscode/
+
+# Helm output
+*.tgz
+charts/
+
+# Local temp files
+tmp/
+*.log
+

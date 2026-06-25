@@ -1,0 +1,11 @@
+namespaceOverride: digital-bank-sit
+
+auth:
+  createSecret: false
+  existingSecret: postgres
+  database: postgres
+  username: postgres
+  password: ""
+
+storage:
+  size: 1Gi
