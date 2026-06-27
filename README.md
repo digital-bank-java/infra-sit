@@ -107,7 +107,14 @@ payment_service
 notification_service
 ```
 
-Only `customer_service` is actively used at this stage.
+The currently active service databases are:
+
+```text
+customer_service
+account_service
+```
+
+The remaining databases are provisioned for planned services and are not active yet.
 
 ## Local Credentials
 
