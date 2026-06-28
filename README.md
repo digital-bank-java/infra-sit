@@ -23,7 +23,6 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | Component | Chart | Purpose |
 | --- | --- | --- |
 | PostgreSQL | `helm/postgres` | Shared local SIT PostgreSQL instance with separate logical databases per service. |
-| Headlamp | `helm/headlamp` | Local-only Kubernetes dashboard for inspecting SIT workloads. |
 
 ## Repository Model
 
@@ -135,54 +134,11 @@ AWS UAT/PROD:
 Amazon RDS PostgreSQL, private subnets, IAM-controlled access, managed backups, Multi-AZ as needed
 ```
 
-## Install Local Kubernetes Dashboard
+## Local Kubernetes Dashboard
 
-Headlamp is installed in a dedicated local tooling namespace and accessed through `kubectl port-forward`.
+Headlamp Desktop is the preferred local Kubernetes GUI for Docker Desktop SIT.
 
-This dashboard is for local SIT visibility only. It is not part of the banking runtime path and is not exposed through the API Gateway.
-
-Build the chart dependency:
-
-```bash
-helm dependency build helm/headlamp
-```
-
-Install Headlamp:
-
-```bash
-helm upgrade --install headlamp helm/headlamp \
-  --namespace digital-bank-tooling \
-  --create-namespace \
-  --values helm/headlamp/values-sit.yaml \
-  --wait \
-  --timeout 5m
-```
-
-Verify:
-
-```bash
-kubectl get pods,svc -n digital-bank-tooling
-```
-
-Create a short-lived read-only login token:
-
-```bash
-kubectl create token headlamp --namespace digital-bank-tooling
-```
-
-Open local access:
-
-```bash
-kubectl port-forward -n digital-bank-tooling svc/headlamp 4466:80
-```
-
-Then open:
-
-```text
-http://localhost:4466
-```
-
-Use the token from `kubectl create token` to sign in.
+Headlamp Desktop runs on the developer workstation and uses the local kubeconfig, so it does not require dashboard workloads inside the cluster.
 
 Useful local views:
 
@@ -191,36 +147,38 @@ Useful local views:
 - Network > Services: inspect stable service names used by the gateway and service-to-service routing.
 - Storage > Persistent Volume Claims: inspect local SIT PostgreSQL storage.
 
-The local chart binds Headlamp to the Kubernetes `view` ClusterRole. This keeps the dashboard read-only. Use Helm and `kubectl` for operational changes so changes remain scripted and reviewable.
+Local Desktop access normally uses the same permissions as `kubectl` for the active context. On Docker Desktop Kubernetes, this usually means broad local administrative access. Use that only for local SIT.
 
 ## UAT and Production Dashboard Guidance
 
-AWS EKS provides Kubernetes resource visibility through the AWS Console. For UAT and production, start with:
+AWS EKS provides Kubernetes resource visibility through the AWS Console. Headlamp Desktop can also connect to EKS after kubeconfig is configured:
+
+```bash
+aws eks update-kubeconfig \
+  --region <aws-region> \
+  --name <eks-cluster-name>
+```
+
+For UAT and production, start with:
 
 ```text
 AWS EKS Console + kubectl + Helm/GitHub Actions deployment history
 ```
 
-Headlamp may be added later as an internal admin tool, but only with:
+Headlamp Desktop may be used later for UAT or production operations only when access is controlled by:
 
-- private network access or VPN;
-- SSO/OIDC authentication;
-- strict Kubernetes RBAC;
+- private cluster endpoint access or VPN;
+- AWS IAM authentication;
+- strict Kubernetes RBAC with least-privilege roles;
 - audit logging;
-- no public internet exposure.
+- no shared cluster-admin credentials.
 
-This repository does not provision UAT or production dashboards. Cloud infrastructure belongs in the future `platform-infra-aws` repository.
+This repository does not provision a Kubernetes dashboard. Cloud infrastructure belongs in the future `platform-infra-aws` repository.
 
 ## Uninstall
 
 ```bash
 helm uninstall postgres --namespace digital-bank-sit
-```
-
-Remove Headlamp:
-
-```bash
-helm uninstall headlamp --namespace digital-bank-tooling
 ```
 
 The persistent volume claim may remain depending on the storage class reclaim policy. Remove local SIT data only when you intentionally want to reset the database:
