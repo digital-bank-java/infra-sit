@@ -23,6 +23,9 @@ jobs:
       - name: Render PostgreSQL chart
         run: helm template postgres helm/postgres --values helm/postgres/values-sit.yaml --namespace digital-bank-sit
 
+      - name: Add Headlamp Helm repository
+        run: helm repo add headlamp https://kubernetes-sigs.github.io/headlamp/
+
       - name: Build Headlamp chart dependencies
         run: helm dependency build helm/headlamp
 
