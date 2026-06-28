@@ -1,0 +1,10 @@
+apiVersion: v2
+name: headlamp
+description: Local Kubernetes dashboard for the Digital Bank Java SIT environment
+type: application
+version: 0.1.0
+appVersion: "0.43.0"
+dependencies:
+  - name: headlamp
+    version: 0.43.0
+    repository: https://kubernetes-sigs.github.io/headlamp/

@@ -23,3 +23,11 @@ jobs:
       - name: Render PostgreSQL chart
         run: helm template postgres helm/postgres --values helm/postgres/values-sit.yaml --namespace digital-bank-sit
 
+      - name: Build Headlamp chart dependencies
+        run: helm dependency build helm/headlamp
+
+      - name: Lint Headlamp chart
+        run: helm lint helm/headlamp --values helm/headlamp/values-sit.yaml
+
+      - name: Render Headlamp chart
+        run: helm template headlamp helm/headlamp --values helm/headlamp/values-sit.yaml --namespace digital-bank-tooling
