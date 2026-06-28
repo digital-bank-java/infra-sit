@@ -1,0 +1,13 @@
+Headlamp is installed for local SIT Kubernetes visibility.
+
+Create a short-lived read-only login token:
+
+  kubectl create token headlamp --namespace {{ .Release.Namespace }}
+
+Open local access:
+
+  kubectl port-forward --namespace {{ .Release.Namespace }} svc/headlamp 4466:80
+
+Then open:
+
+  http://localhost:4466
