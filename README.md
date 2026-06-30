@@ -1,4 +1,4 @@
-# Platform Infra Local
+# Infra SIT
 
 Local Kubernetes infrastructure for the Digital Bank Java platform.
 
@@ -27,10 +27,10 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 ## Repository Model
 
 ```text
-platform-config
+config-repo
   Runtime configuration served by Config Server.
 
-platform-infra-local
+infra-sit
   Local Kubernetes infrastructure for Docker Desktop SIT.
 
 platform-infra-aws
