@@ -1,0 +1,4 @@
+namespaceOverride: digital-bank-sit
+
+storage:
+  size: 1Gi
