@@ -22,3 +22,15 @@ jobs:
 
       - name: Render PostgreSQL chart
         run: helm template postgres helm/postgres --values helm/postgres/values-sit.yaml --namespace digital-bank-sit
+
+      - name: Lint Kafka chart
+        run: helm lint helm/kafka --values helm/kafka/values-sit.yaml
+
+      - name: Render Kafka chart
+        run: helm template kafka helm/kafka --values helm/kafka/values-sit.yaml --namespace digital-bank-sit
+
+      - name: Lint AKHQ chart
+        run: helm lint helm/akhq --values helm/akhq/values-sit.yaml
+
+      - name: Render AKHQ chart
+        run: helm template akhq helm/akhq --values helm/akhq/values-sit.yaml --namespace digital-bank-tooling

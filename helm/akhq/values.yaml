@@ -1,0 +1,21 @@
+namespaceOverride: ""
+
+image:
+  repository: tchiotludo/akhq
+  tag: "0.27.0"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8080
+
+kafka:
+  clusterName: local-sit
+  bootstrapServers: kafka.digital-bank-sit.svc.cluster.local:9092
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

@@ -10,6 +10,7 @@ It should model shared infrastructure concerns, not service business logic.
 
 - shared PostgreSQL for local SIT
 - shared Kafka for local SIT event streaming
+- AKHQ dashboard for local SIT Kafka inspection
 - future shared tooling needed by the local integrated environment
 - infrastructure README and rollout guidance
 
@@ -29,6 +30,10 @@ helm upgrade --install postgres helm/postgres --namespace digital-bank-sit --cre
 helm lint helm/kafka --values helm/kafka/values-sit.yaml
 helm template kafka helm/kafka --values helm/kafka/values-sit.yaml
 helm upgrade --install kafka helm/kafka --namespace digital-bank-sit --create-namespace --values helm/kafka/values-sit.yaml
+
+helm lint helm/akhq --values helm/akhq/values-sit.yaml
+helm template akhq helm/akhq --values helm/akhq/values-sit.yaml
+helm upgrade --install akhq helm/akhq --namespace digital-bank-tooling --create-namespace --values helm/akhq/values-sit.yaml
 ```
 
 ## Infrastructure Model
@@ -38,6 +43,7 @@ helm upgrade --install kafka helm/kafka --namespace digital-bank-sit --create-na
 - Service isolation is logical at the database level, while infrastructure reuse is physical at the instance level.
 - Local SIT uses one shared Kafka broker for event-driven integration testing.
 - Kafka is local-only infrastructure here; UAT and PROD should map this responsibility to a managed or separately operated event streaming platform.
+- AKHQ runs in `digital-bank-tooling` because it is an inspection tool, not an application runtime dependency.
 
 ## Current Logical Databases
 

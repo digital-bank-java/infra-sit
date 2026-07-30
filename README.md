@@ -24,6 +24,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | --- | --- | --- |
 | PostgreSQL | `helm/postgres` | Shared local SIT PostgreSQL instance with separate logical databases per service. |
 | Kafka | `helm/kafka` | Shared local SIT event broker for service integration and future saga/event flows. |
+| AKHQ | `helm/akhq` | Local SIT Kafka dashboard for inspecting topics, messages, and consumer groups. |
 
 ## Repository Model
 
@@ -165,16 +166,57 @@ Kafka is required before implementing event-driven transaction flows such as:
 - transaction saga orchestration;
 - future outbox/inbox integration tests.
 
+## Install AKHQ Kafka Dashboard
+
+AKHQ is tooling, not a core banking runtime dependency. Install it into the tooling namespace:
+
+```bash
+helm upgrade --install akhq helm/akhq \
+  --namespace digital-bank-tooling \
+  --create-namespace \
+  --values helm/akhq/values-sit.yaml \
+  --wait \
+  --timeout 5m
+```
+
+Verify:
+
+```bash
+kubectl get pods,svc -n digital-bank-tooling -l app.kubernetes.io/name=akhq
+```
+
+Expose the AKHQ UI to your Mac:
+
+```bash
+kubectl port-forward -n digital-bank-tooling svc/akhq 8088:8080
+```
+
+Open:
+
+```text
+http://localhost:8088
+```
+
+AKHQ connects to the SIT Kafka broker through the in-cluster address:
+
+```text
+kafka.digital-bank-sit.svc.cluster.local:9092
+```
+
+Keep AKHQ access local-only for SIT. Do not expose it with a public LoadBalancer or public Ingress.
+
 ## AWS Mapping
 
 ```text
 Local SIT:
 PostgreSQL StatefulSet + PVC in Docker Desktop Kubernetes
 Kafka StatefulSet + PVC in Docker Desktop Kubernetes
+AKHQ Deployment in Docker Desktop Kubernetes tooling namespace
 
 AWS UAT/PROD:
 Amazon RDS PostgreSQL, private subnets, IAM-controlled access, managed backups, Multi-AZ as needed
 Managed or separately operated Kafka-compatible event streaming, private networking, IAM or mTLS/SASL access control, encryption, monitoring, and retention policies
+Kafka dashboard access only through private networking, SSO/RBAC, and audited administrative access
 ```
 
 ## Local Kubernetes Dashboard
@@ -221,6 +263,7 @@ This repository does not provision a Kubernetes dashboard. Cloud infrastructure 
 ## Uninstall
 
 ```bash
+helm uninstall akhq --namespace digital-bank-tooling
 helm uninstall kafka --namespace digital-bank-sit
 helm uninstall postgres --namespace digital-bank-sit
 ```
