@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "akhq.fullname" . }}
+  namespace: {{ include "akhq.namespace" . }}
+  labels:
+    {{- include "akhq.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+  selector:
+    {{- include "akhq.selectorLabels" . | nindent 4 }}

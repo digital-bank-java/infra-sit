@@ -1,0 +1,5 @@
+namespaceOverride: digital-bank-tooling
+
+kafka:
+  clusterName: local-sit
+  bootstrapServers: kafka.digital-bank-sit.svc.cluster.local:9092
