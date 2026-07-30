@@ -23,6 +23,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | Component | Chart | Purpose |
 | --- | --- | --- |
 | PostgreSQL | `helm/postgres` | Shared local SIT PostgreSQL instance with separate logical databases per service. |
+| Kafka | `helm/kafka` | Shared local SIT event broker for service integration and future saga/event flows. |
 
 ## Repository Model
 
@@ -124,14 +125,56 @@ The chart references the existing Kubernetes Secret instead of rendering a passw
 
 For AWS UAT and production, application databases should use Amazon RDS PostgreSQL and credentials should come from AWS Secrets Manager, typically exposed to Kubernetes through External Secrets Operator or an equivalent controlled mechanism.
 
+## Install Shared Kafka
+
+Install Kafka into the local SIT namespace:
+
+```bash
+helm upgrade --install kafka helm/kafka \
+  --namespace digital-bank-sit \
+  --create-namespace \
+  --values helm/kafka/values-sit.yaml \
+  --wait \
+  --timeout 5m
+```
+
+Verify:
+
+```bash
+kubectl get pods,svc,pvc -n digital-bank-sit -l app.kubernetes.io/name=kafka
+```
+
+The in-cluster Kafka service name is:
+
+```text
+kafka.digital-bank-sit.svc.cluster.local:9092
+```
+
+Services in the same namespace can use:
+
+```text
+kafka:9092
+```
+
+This chart deploys a single Kafka broker in KRaft mode for local SIT only. It does not deploy ZooKeeper.
+
+Kafka is required before implementing event-driven transaction flows such as:
+
+- account reservation events;
+- ledger posting events;
+- transaction saga orchestration;
+- future outbox/inbox integration tests.
+
 ## AWS Mapping
 
 ```text
 Local SIT:
 PostgreSQL StatefulSet + PVC in Docker Desktop Kubernetes
+Kafka StatefulSet + PVC in Docker Desktop Kubernetes
 
 AWS UAT/PROD:
 Amazon RDS PostgreSQL, private subnets, IAM-controlled access, managed backups, Multi-AZ as needed
+Managed or separately operated Kafka-compatible event streaming, private networking, IAM or mTLS/SASL access control, encryption, monitoring, and retention policies
 ```
 
 ## Local Kubernetes Dashboard
@@ -145,7 +188,7 @@ Useful local views:
 - Workloads > Deployments: inspect rollout state for `api-gateway`, `config-server`, `customer-service`, and `account-service`.
 - Workloads > Pods: inspect pod status, restarts, logs, and events.
 - Network > Services: inspect stable service names used by the gateway and service-to-service routing.
-- Storage > Persistent Volume Claims: inspect local SIT PostgreSQL storage.
+- Storage > Persistent Volume Claims: inspect local SIT PostgreSQL and Kafka storage.
 
 Local Desktop access normally uses the same permissions as `kubectl` for the active context. On Docker Desktop Kubernetes, this usually means broad local administrative access. Use that only for local SIT.
 
@@ -178,6 +221,7 @@ This repository does not provision a Kubernetes dashboard. Cloud infrastructure 
 ## Uninstall
 
 ```bash
+helm uninstall kafka --namespace digital-bank-sit
 helm uninstall postgres --namespace digital-bank-sit
 ```
 
@@ -185,4 +229,5 @@ The persistent volume claim may remain depending on the storage class reclaim po
 
 ```bash
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=postgres
+kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=kafka
 ```

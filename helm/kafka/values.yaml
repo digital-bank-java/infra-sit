@@ -1,0 +1,30 @@
+namespaceOverride: ""
+
+image:
+  repository: apache/kafka
+  tag: "3.9.1"
+  pullPolicy: IfNotPresent
+
+service:
+  clientPort: 9092
+  controllerPort: 9093
+
+kafka:
+  clusterId: "MkU3OEVBNTcwNTJENDM2Qk"
+  nodeId: 1
+  autoCreateTopics: true
+  offsetsTopicReplicationFactor: 1
+  transactionStateLogReplicationFactor: 1
+  transactionStateLogMinIsr: 1
+  groupInitialRebalanceDelayMs: 0
+
+storage:
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi

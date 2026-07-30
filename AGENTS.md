@@ -9,6 +9,7 @@ It should model shared infrastructure concerns, not service business logic.
 ## Current Responsibilities
 
 - shared PostgreSQL for local SIT
+- shared Kafka for local SIT event streaming
 - future shared tooling needed by the local integrated environment
 - infrastructure README and rollout guidance
 
@@ -24,6 +25,10 @@ It should model shared infrastructure concerns, not service business logic.
 helm lint helm/postgres --values helm/postgres/values-sit.yaml
 helm template postgres helm/postgres --values helm/postgres/values-sit.yaml
 helm upgrade --install postgres helm/postgres --namespace digital-bank-sit --create-namespace --values helm/postgres/values-sit.yaml
+
+helm lint helm/kafka --values helm/kafka/values-sit.yaml
+helm template kafka helm/kafka --values helm/kafka/values-sit.yaml
+helm upgrade --install kafka helm/kafka --namespace digital-bank-sit --create-namespace --values helm/kafka/values-sit.yaml
 ```
 
 ## Infrastructure Model
@@ -31,6 +36,8 @@ helm upgrade --install postgres helm/postgres --namespace digital-bank-sit --cre
 - Local SIT currently uses one shared PostgreSQL instance.
 - Each service gets a separate logical database inside that instance.
 - Service isolation is logical at the database level, while infrastructure reuse is physical at the instance level.
+- Local SIT uses one shared Kafka broker for event-driven integration testing.
+- Kafka is local-only infrastructure here; UAT and PROD should map this responsibility to a managed or separately operated event streaming platform.
 
 ## Current Logical Databases
 
