@@ -55,18 +55,28 @@ helm version --short
 
 ## Install Shared PostgreSQL
 
-Create the local SIT namespace and Secret:
+Create the local SIT namespace:
 
 ```bash
 kubectl create namespace digital-bank-sit --dry-run=client -o yaml | kubectl apply -f -
+```
 
-kubectl create secret generic postgres \
+Create the PostgreSQL Secret without putting the password into shell history:
+
+```bash
+read -r -s -p "Local SIT PostgreSQL password: " POSTGRES_PASSWORD && printf '\n'
+
+printf '%s' "$POSTGRES_PASSWORD" | kubectl create secret generic postgres \
   --namespace digital-bank-sit \
   --from-literal=POSTGRES_DB=postgres \
   --from-literal=POSTGRES_USER=postgres \
-  --from-literal=POSTGRES_PASSWORD=postgres \
+  --from-file=POSTGRES_PASSWORD=/dev/stdin \
   --dry-run=client -o yaml | kubectl apply -f -
+
+unset POSTGRES_PASSWORD
 ```
+
+This reads the password interactively, sends it to `kubectl` through standard input, applies the Secret declaratively, and removes the shell variable afterward. No password literal is written into shell history.
 
 Install PostgreSQL into the local SIT namespace:
 
@@ -120,7 +130,7 @@ The remaining databases are provisioned for planned services and are not active 
 
 ## Local Credentials
 
-The local SIT Secret shown above is suitable only for Docker Desktop SIT. These values are not production credentials.
+The local SIT Secret created above is suitable only for Docker Desktop SIT. Use a throwaway local password, not a reused personal or production credential.
 
 The chart references the existing Kubernetes Secret instead of rendering a password into Helm output. This keeps credentials out of Git history, pull request diffs, and CI logs.
 
