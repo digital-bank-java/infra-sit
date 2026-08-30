@@ -46,6 +46,8 @@ platform-infra-aws
 - `kubectl` configured for the `docker-desktop` context.
 - Helm 3 or 4.
 
+OpenSearch also requires the Kubernetes node's Linux `vm.max_map_count` to be at least `262144`. Verify the node setting before installing the OpenSearch chart; OpenSearch exits its bootstrap checks when the value is lower. On Linux, set `vm.max_map_count=262144` in the host sysctl configuration and reload it. On Docker Desktop, apply the equivalent setting in the Linux VM used by Docker Desktop.
+
 Verify:
 
 ```bash

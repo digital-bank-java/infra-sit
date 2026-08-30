@@ -34,6 +34,9 @@ spec:
               path: /api/status
               port: http
               scheme: HTTP
+              httpHeaders:
+                - name: Authorization
+                  value: {{ include "opensearch.dashboardsProbeAuthorization" . }}
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 60
@@ -42,6 +45,9 @@ spec:
               path: /api/status
               port: http
               scheme: HTTP
+              httpHeaders:
+                - name: Authorization
+                  value: {{ include "opensearch.dashboardsProbeAuthorization" . }}
             initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 5
@@ -51,6 +57,9 @@ spec:
               path: /api/status
               port: http
               scheme: HTTP
+              httpHeaders:
+                - name: Authorization
+                  value: {{ include "opensearch.dashboardsProbeAuthorization" . }}
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 5
