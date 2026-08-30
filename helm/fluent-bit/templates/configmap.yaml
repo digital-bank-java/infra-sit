@@ -102,6 +102,14 @@ data:
       return false
     end
 
+    local function redact_string(value)
+      value = string.gsub(value, "[Bb]earer%s+[^%s]+", "Bearer [REDACTED]")
+      value = string.gsub(value, "([Pp]assword%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Tt]oken%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Aa]uthorization%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      return value
+    end
+
     local function redact(value)
       if type(value) ~= "table" then
         return value
@@ -113,7 +121,7 @@ data:
         elseif type(child) == "table" then
           redact(child)
         elseif type(child) == "string" then
-          value[key] = string.gsub(child, "Bearer%s+[^%s]+", "Bearer [REDACTED]")
+          value[key] = redact_string(child)
         end
       end
       return value
@@ -122,10 +130,24 @@ data:
     function process_record(tag, timestamp, record)
       local parsed = record["structured"]
       if parsed == nil then
-        record["logging_parse_status"] = "invalid"
-        record["logging_invalid_event"] = true
-        record["invalid_event_reason"] = "structured_json_parse_failed"
-        record["log"] = "[REDACTED_INVALID_STRUCTURED_LOG]"
+        local raw_log = record["log"]
+        local first_character = ""
+        if type(raw_log) == "string" then
+          first_character = string.match(raw_log, "^%s*(.)") or ""
+        end
+
+        if first_character == "{" then
+          record["logging_parse_status"] = "invalid"
+          record["logging_invalid_event"] = true
+          record["invalid_event_reason"] = "structured_json_parse_failed"
+          record["log"] = "[REDACTED_INVALID_STRUCTURED_LOG]"
+        else
+          record["logging_parse_status"] = "unstructured"
+          record["logging_invalid_event"] = false
+          if type(raw_log) == "string" then
+            record["log"] = redact_string(raw_log)
+          end
+        end
       else
         redact(record)
         record["logging_parse_status"] = "valid"

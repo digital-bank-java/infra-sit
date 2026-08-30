@@ -218,7 +218,7 @@ Keep AKHQ access local-only for SIT. Do not expose it with a public LoadBalancer
 
 ## Install Fluent Bit Log Collection
 
-Fluent Bit runs as a DaemonSet in `digital-bank-sit`, so one collector runs on each Kubernetes node and reads the node's container stdout/stderr log files. The Kubernetes filter enriches records with pod, namespace, container, and node metadata. Structured JSON records are parsed under `structured` and passed through the redaction filter before they are sent to OpenSearch.
+Fluent Bit runs as a DaemonSet in `digital-bank-sit`, so one collector runs on each Kubernetes node and reads the node's container stdout/stderr log files. The Kubernetes filter enriches records with pod, namespace, container, and node metadata. Structured JSON records are parsed under `structured` and passed through the redaction filter before they are sent to OpenSearch. Plain-text records are retained as `unstructured` records with inline credential redaction.
 
 The chart expects the existing local SIT OpenSearch Secret. It does not create or commit credentials:
 
@@ -242,7 +242,7 @@ The collector sends to the configurable OpenSearch endpoint in `values-sit.yaml`
 
 Filesystem buffering is enabled for backpressure and transient OpenSearch failures. `Retry_Limit False` allows Fluent Bit to retry until the record is accepted or the configured storage limit is reached. The chart uses a dedicated node path for its buffer and tail database. Monitor buffer usage and Fluent Bit health in a real deployment.
 
-Records that cannot be parsed as structured JSON are retained as observable events with `logging_parse_status=invalid`, `logging_invalid_event=true`, and `invalid_event_reason=structured_json_parse_failed`. Their raw log field is replaced before output, preventing an invalid record from bypassing redaction. Query the `digital-bank-sit-*` OpenSearch indexes for these fields when investigating application logging problems.
+JSON-looking records that cannot be parsed as structured JSON are retained as observable events with `logging_parse_status=invalid`, `logging_invalid_event=true`, and `invalid_event_reason=structured_json_parse_failed`. Their raw log field is replaced before output, preventing an invalid record from bypassing redaction. Plain-text records use `logging_parse_status=unstructured` and retain their message after inline credential redaction. Query the `digital-bank-sit-*` OpenSearch indexes for these fields when investigating application logging problems.
 
 The collector redacts keys containing credentials or personal identifiers, including password, token, authorization, secret, API key, cookies, SSN, national ID, and tax ID. This is a defense-in-depth control; services must still avoid logging secrets and sensitive customer data.
 
@@ -259,11 +259,13 @@ Local SIT:
 PostgreSQL StatefulSet + PVC in Docker Desktop Kubernetes
 Kafka StatefulSet + PVC in Docker Desktop Kubernetes
 AKHQ Deployment in Docker Desktop Kubernetes tooling namespace
+Fluent Bit DaemonSet in Docker Desktop Kubernetes
 
 AWS UAT/PROD:
 Amazon RDS PostgreSQL, private subnets, IAM-controlled access, managed backups, Multi-AZ as needed
 Managed or separately operated Kafka-compatible event streaming, private networking, IAM or mTLS/SASL access control, encryption, monitoring, and retention policies
 Kafka dashboard access only through private networking, SSO/RBAC, and audited administrative access
+Managed log ingestion and OpenSearch-compatible storage with private networking, TLS verification, scoped credentials, retention, and monitoring
 ```
 
 ## Local Kubernetes Dashboard

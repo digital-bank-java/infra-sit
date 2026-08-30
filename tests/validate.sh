@@ -23,4 +23,6 @@ grep -q 'storage.total_limit_size' "$rendered"
 grep -q 'OPENSEARCH_HOST' "$rendered"
 grep -q 'opensearch-admin' "$rendered"
 
+bash "$(dirname "${BASH_SOURCE[0]}")/validate-redaction.sh"
+
 echo "Fluent Bit chart validation passed"
