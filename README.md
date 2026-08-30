@@ -25,6 +25,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | PostgreSQL | `helm/postgres` | Shared local SIT PostgreSQL instance with separate logical databases per service. |
 | Kafka | `helm/kafka` | Shared local SIT event broker for service integration and future saga/event flows. |
 | AKHQ | `helm/akhq` | Local SIT Kafka dashboard for inspecting topics, messages, and consumer groups. |
+| Redis | `helm/redis` | Shared local SIT state store for API Gateway rate limiting and resilience coordination. |
 
 ## Repository Model
 
@@ -167,6 +168,39 @@ Services in the same namespace can use:
 kafka:9092
 ```
 
+## Install Shared Redis
+
+Redis is shared local SIT infrastructure for gateway rate limiting and resilience state. It is not exposed outside the cluster.
+
+```bash
+helm upgrade --install redis helm/redis \
+  --namespace digital-bank-sit \
+  --create-namespace \
+  --values helm/redis/values-sit.yaml \
+  --wait \
+  --timeout 5m
+```
+
+Verify:
+
+```bash
+kubectl get pods,svc,pvc -n digital-bank-sit -l app.kubernetes.io/name=redis
+```
+
+The in-cluster Redis service name is:
+
+```text
+redis.digital-bank-sit.svc.cluster.local:6379
+```
+
+Services in the same namespace can use:
+
+```text
+redis:6379
+```
+
+This is a single-replica Redis StatefulSet with append-only persistence on a local Docker Desktop PVC. The PVC protects data across a pod restart, but local SIT does not provide production-grade high availability, backup, failover, or disaster recovery. Do not put production credentials or business-critical data in this instance.
+
 This chart deploys a single Kafka broker in KRaft mode for local SIT only. It does not deploy ZooKeeper.
 
 Kafka is required before implementing event-driven transaction flows such as:
@@ -221,10 +255,12 @@ Keep AKHQ access local-only for SIT. Do not expose it with a public LoadBalancer
 Local SIT:
 PostgreSQL StatefulSet + PVC in Docker Desktop Kubernetes
 Kafka StatefulSet + PVC in Docker Desktop Kubernetes
+Redis StatefulSet + PVC in Docker Desktop Kubernetes
 AKHQ Deployment in Docker Desktop Kubernetes tooling namespace
 
 AWS UAT/PROD:
 Amazon RDS PostgreSQL, private subnets, IAM-controlled access, managed backups, Multi-AZ as needed
+Amazon ElastiCache for Redis or Valkey, private subnets, encryption, authentication, replication, automatic failover, backups, and monitoring
 Managed or separately operated Kafka-compatible event streaming, private networking, IAM or mTLS/SASL access control, encryption, monitoring, and retention policies
 Kafka dashboard access only through private networking, SSO/RBAC, and audited administrative access
 ```
@@ -274,6 +310,7 @@ This repository does not provision a Kubernetes dashboard. Cloud infrastructure 
 
 ```bash
 helm uninstall akhq --namespace digital-bank-tooling
+helm uninstall redis --namespace digital-bank-sit
 helm uninstall kafka --namespace digital-bank-sit
 helm uninstall postgres --namespace digital-bank-sit
 ```
@@ -283,4 +320,5 @@ The persistent volume claim may remain depending on the storage class reclaim po
 ```bash
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=postgres
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=kafka
+kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=redis
 ```

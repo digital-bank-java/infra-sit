@@ -1,0 +1,14 @@
+namespaceOverride: digital-bank-sit
+
+image:
+  repository: redis
+  tag: "7.4-alpine"
+
+redis:
+  appendOnly: true
+  appendFsync: everysec
+  maxmemory: "256mb"
+  maxmemoryPolicy: allkeys-lru
+
+storage:
+  size: 1Gi
