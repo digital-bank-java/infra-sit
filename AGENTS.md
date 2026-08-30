@@ -34,6 +34,10 @@ helm upgrade --install kafka helm/kafka --namespace digital-bank-sit --create-na
 helm lint helm/akhq --values helm/akhq/values-sit.yaml
 helm template akhq helm/akhq --values helm/akhq/values-sit.yaml
 helm upgrade --install akhq helm/akhq --namespace digital-bank-tooling --create-namespace --values helm/akhq/values-sit.yaml
+
+helm lint helm/opensearch --values helm/opensearch/values-sit.yaml
+helm template opensearch helm/opensearch --values helm/opensearch/values-sit.yaml
+helm upgrade --install opensearch helm/opensearch --namespace digital-bank-sit --create-namespace --values helm/opensearch/values-sit.yaml
 ```
 
 ## Infrastructure Model

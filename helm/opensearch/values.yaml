@@ -1,0 +1,91 @@
+namespaceOverride: ""
+
+opensearch:
+  image:
+    repository: opensearchproject/opensearch
+    tag: "2.19.0"
+    pullPolicy: IfNotPresent
+
+  clusterName: digital-bank-sit
+  nodeName: opensearch
+  javaOpts: "-Xms512m -Xmx512m"
+
+  service:
+    httpPort: 9200
+    transportPort: 9300
+
+  auth:
+    existingSecret: opensearch-admin
+    adminPasswordKey: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+  podSecurityContext:
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
+    seccompProfile:
+      type: RuntimeDefault
+
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+
+dashboards:
+  image:
+    repository: opensearchproject/opensearch-dashboards
+    tag: "2.19.0"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    port: 5601
+
+  opensearch:
+    hosts:
+      - https://opensearch:9200
+    username: kibanaserver
+    password: kibanaserver
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  podSecurityContext:
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
+    seccompProfile:
+      type: RuntimeDefault
+
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL

@@ -1,0 +1,10 @@
+namespaceOverride: digital-bank-sit
+
+opensearch:
+  clusterName: digital-bank-sit
+  persistence:
+    enabled: true
+    size: 5Gi
+
+dashboards:
+  replicas: 1

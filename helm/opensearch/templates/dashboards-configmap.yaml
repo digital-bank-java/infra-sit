@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opensearch.dashboardsName" . }}-config
+  namespace: {{ include "opensearch.namespace" . }}
+  labels:
+    {{- include "opensearch.dashboardsLabels" . | nindent 4 }}
+data:
+  opensearch_dashboards.yml: |
+    server.host: "0.0.0.0"
+    server.name: {{ include "opensearch.dashboardsName" . | quote }}
+    server.ssl.enabled: false
+    opensearch.hosts: {{ .Values.dashboards.opensearch.hosts | toJson }}
+    opensearch.ssl.verificationMode: none
+    opensearch.username: {{ .Values.dashboards.opensearch.username | quote }}
+    opensearch.password: {{ .Values.dashboards.opensearch.password | quote }}
+    opensearch.requestHeadersWhitelist: ["securitytenant", "Authorization"]
+    opensearch_security.multitenancy.enabled: true
+    opensearch_security.multitenancy.tenants.preferred: ["Private", "Global"]
+    opensearch_security.readonly_mode.roles: ["kibana_read_only"]
