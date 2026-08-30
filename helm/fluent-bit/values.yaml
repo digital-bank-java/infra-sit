@@ -1,0 +1,43 @@
+namespaceOverride: ""
+
+image:
+  repository: fluent/fluent-bit
+  tag: "3.2.10"
+  pullPolicy: IfNotPresent
+
+opensearch:
+  host: opensearch.digital-bank-sit.svc.cluster.local
+  port: 9200
+  tls: true
+  tlsVerify: false
+  username: admin
+  existingSecret: opensearch-admin
+  passwordKey: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+  indexPrefix: digital-bank-sit
+
+buffer:
+  storageHostPath: /var/lib/fluent-bit
+  storagePath: /var/lib/fluent-bit/storage
+  databasePath: /var/lib/fluent-bit/tail.db
+  backlogMemoryLimit: 50M
+  totalLimitSize: 5G
+
+service:
+  type: ClusterIP
+  port: 2020
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule

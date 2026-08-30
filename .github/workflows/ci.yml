@@ -34,3 +34,6 @@ jobs:
 
       - name: Render AKHQ chart
         run: helm template akhq helm/akhq --values helm/akhq/values-sit.yaml --namespace digital-bank-tooling
+
+      - name: Validate Fluent Bit chart
+        run: bash tests/validate.sh

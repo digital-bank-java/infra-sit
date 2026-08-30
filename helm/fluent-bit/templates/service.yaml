@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fluent-bit.fullname" . }}
+  namespace: {{ include "fluent-bit.namespace" . }}
+  labels:
+    {{- include "fluent-bit.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: metrics
+      port: {{ .Values.service.port }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "fluent-bit.selectorLabels" . | nindent 4 }}

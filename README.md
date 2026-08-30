@@ -25,6 +25,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | PostgreSQL | `helm/postgres` | Shared local SIT PostgreSQL instance with separate logical databases per service. |
 | Kafka | `helm/kafka` | Shared local SIT event broker for service integration and future saga/event flows. |
 | AKHQ | `helm/akhq` | Local SIT Kafka dashboard for inspecting topics, messages, and consumer groups. |
+| Fluent Bit | `helm/fluent-bit` | Local SIT Kubernetes log collector that enriches, redacts, buffers, and forwards logs to OpenSearch. |
 
 ## Repository Model
 
@@ -214,6 +215,42 @@ kafka.digital-bank-sit.svc.cluster.local:9092
 ```
 
 Keep AKHQ access local-only for SIT. Do not expose it with a public LoadBalancer or public Ingress.
+
+## Install Fluent Bit Log Collection
+
+Fluent Bit runs as a DaemonSet in `digital-bank-sit`, so one collector runs on each Kubernetes node and reads the node's container stdout/stderr log files. The Kubernetes filter enriches records with pod, namespace, container, and node metadata. Structured JSON records are parsed under `structured` and passed through the redaction filter before they are sent to OpenSearch.
+
+The chart expects the existing local SIT OpenSearch Secret. It does not create or commit credentials:
+
+```bash
+helm upgrade --install fluent-bit helm/fluent-bit \
+  --namespace digital-bank-sit \
+  --create-namespace \
+  --values helm/fluent-bit/values-sit.yaml \
+  --wait \
+  --timeout 5m
+```
+
+Verify the DaemonSet and collector health:
+
+```bash
+kubectl get daemonset,pods,svc -n digital-bank-sit -l app.kubernetes.io/name=fluent-bit
+kubectl logs -n digital-bank-sit -l app.kubernetes.io/name=fluent-bit --tail=50
+```
+
+The collector sends to the configurable OpenSearch endpoint in `values-sit.yaml`. Local SIT uses the in-cluster `opensearch.digital-bank-sit.svc.cluster.local:9200` address over HTTPS, with the local-only TLS verification setting matching the local OpenSearch chart. UAT and PROD should replace the endpoint, TLS trust configuration, and credential reference through environment-specific deployment values; application services do not need to change.
+
+Filesystem buffering is enabled for backpressure and transient OpenSearch failures. `Retry_Limit False` allows Fluent Bit to retry until the record is accepted or the configured storage limit is reached. The chart uses a dedicated node path for its buffer and tail database. Monitor buffer usage and Fluent Bit health in a real deployment.
+
+Records that cannot be parsed as structured JSON are retained as observable events with `logging_parse_status=invalid`, `logging_invalid_event=true`, and `invalid_event_reason=structured_json_parse_failed`. Their raw log field is replaced before output, preventing an invalid record from bypassing redaction. Query the `digital-bank-sit-*` OpenSearch indexes for these fields when investigating application logging problems.
+
+The collector redacts keys containing credentials or personal identifiers, including password, token, authorization, secret, API key, cookies, SSN, national ID, and tax ID. This is a defense-in-depth control; services must still avoid logging secrets and sensitive customer data.
+
+Validate the chart without installing it:
+
+```bash
+bash tests/validate.sh
+```
 
 ## AWS Mapping
 

@@ -1,0 +1,11 @@
+namespaceOverride: digital-bank-sit
+
+opensearch:
+  host: opensearch.digital-bank-sit.svc.cluster.local
+  port: 9200
+  tls: true
+  tlsVerify: false
+  username: admin
+  existingSecret: opensearch-admin
+  passwordKey: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+  indexPrefix: digital-bank-sit
