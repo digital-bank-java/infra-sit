@@ -88,12 +88,14 @@ data:
   redact.lua: |
     local sensitive_fragments = {
       "password", "passwd", "token", "authorization", "secret",
-      "client_secret", "api_key", "access_token", "refresh_token",
-      "cookie", "set-cookie", "ssn", "national_id", "tax_id"
+      "apikey", "clientsecret", "accesstoken", "refreshtoken",
+      "cookie", "setcookie", "ssn", "nationalid", "taxid"
     }
 
     local function is_sensitive_key(key)
       local normalized = string.lower(tostring(key))
+      normalized = string.gsub(normalized, "_", "")
+      normalized = string.gsub(normalized, "%-", "")
       for _, fragment in ipairs(sensitive_fragments) do
         if string.find(normalized, fragment, 1, true) then
           return true
@@ -107,6 +109,11 @@ data:
       value = string.gsub(value, "([Pp]assword%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
       value = string.gsub(value, "([Tt]oken%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
       value = string.gsub(value, "([Aa]uthorization%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Ss]ecret%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Aa][Pp][Ii][_][Kk][Ee][Yy]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Aa][Pp][Ii][Kk][Ee][Yy]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Cc][Ll][Ii][Ee][Nn][Tt][_][Ss][Ee][Cc][Rr][Ee][Tt]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Cc][Ll][Ii][Ee][Nn][Tt][Ss][Ee][Cc][Rr][Ee][Tt]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
       return value
     end
 

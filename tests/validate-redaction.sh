@@ -26,7 +26,12 @@ printf '%s\n' \
   '[INPUT]' \
   '    Name dummy' \
   '    Tag kube.test' \
-  '    Dummy {"log":"2026-08-30 21:00:00.000 INFO app : Spring application started password=plain-secret Bearer super-secret-token"}' \
+  '    Dummy {"log":"2026-08-30 21:00:00.000 INFO app : Spring application started password=password-value-123 token=token-value-456 authorization=authorization-value-789 secret=secret-value-abc api_key=api-key-value-def client_secret=client-secret-value-ghi Bearer bearer-value-jkl"}' \
+  '' \
+  '[INPUT]' \
+  '    Name dummy' \
+  '    Tag kube.structured' \
+  '    Dummy {"structured":{"apiKey":"camel-api-key-value","clientSecret":"camel-client-secret-value","secret":"structured-secret-value"}}' \
   '' \
   '[FILTER]' \
   '    Name lua' \
@@ -51,6 +56,14 @@ grep -q 'Spring application started' "$tmpdir/output"
 grep -q 'logging_parse_status"=>"unstructured"' "$tmpdir/output"
 grep -q 'logging_invalid_event"=>false' "$tmpdir/output"
 grep -q 'Bearer \[REDACTED\]' "$tmpdir/output"
-! grep -q 'plain-secret\|super-secret-token' "$tmpdir/output"
+grep -q 'password=\[REDACTED\]' "$tmpdir/output"
+grep -q 'token=\[REDACTED\]' "$tmpdir/output"
+grep -q 'authorization=\[REDACTED\]' "$tmpdir/output"
+grep -q 'secret=\[REDACTED\]' "$tmpdir/output"
+grep -q 'api_key=\[REDACTED\]' "$tmpdir/output"
+grep -q 'client_secret=\[REDACTED\]' "$tmpdir/output"
+grep -q 'apiKey.*\[REDACTED\]' "$tmpdir/output"
+grep -q 'clientSecret.*\[REDACTED\]' "$tmpdir/output"
+! grep -Eq 'password-value-123|token-value-456|authorization-value-789|secret-value-abc|api-key-value-def|client-secret-value-ghi|bearer-value-jkl|camel-api-key-value|camel-client-secret-value|structured-secret-value' "$tmpdir/output"
 
 echo "Fluent Bit plain-text redaction validation passed"
