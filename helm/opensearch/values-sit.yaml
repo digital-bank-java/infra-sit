@@ -8,3 +8,5 @@ opensearch:
 
 dashboards:
   replicas: 1
+  opensearch:
+    existingSecret: opensearch-dashboards

@@ -37,7 +37,3 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 app.kubernetes.io/name: {{ include "opensearch.dashboardsName" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
-
-{{- define "opensearch.dashboardsProbeAuthorization" -}}
-Basic {{ printf "%s:%s" .Values.dashboards.opensearch.username .Values.dashboards.opensearch.password | b64enc }}
-{{- end -}}

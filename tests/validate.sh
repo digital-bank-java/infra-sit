@@ -10,8 +10,10 @@ helm template opensearch "$chart_dir" \
   --namespace digital-bank-sit \
   --values "$chart_dir/values-sit.yaml" > "$rendered"
 
-test "$(grep -c 'name: Authorization' "$rendered")" -eq 3
-grep -q 'value: Basic a2liYW5hc2VydmVyOmtpYmFuYXNlcnZlcg==' "$rendered"
+test "$(grep -c 'name: OPENSEARCH_DASHBOARDS_' "$rendered")" -eq 2
+grep -q 'opensearch.username: ${OPENSEARCH_DASHBOARDS_USERNAME}' "$rendered"
+grep -q 'opensearch.password: ${OPENSEARCH_DASHBOARDS_PASSWORD}' "$rendered"
+! grep -q 'kibanaserver' "$rendered"
 grep -q 'opensearch.requestHeadersAllowlist' "$rendered"
 ! grep -q 'opensearch.requestHeadersWhitelist' "$rendered"
 

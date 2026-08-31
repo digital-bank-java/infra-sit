@@ -63,8 +63,9 @@ dashboards:
   opensearch:
     hosts:
       - https://opensearch:9200
-    username: kibanaserver
-    password: kibanaserver
+    existingSecret: opensearch-dashboards
+    usernameKey: OPENSEARCH_DASHBOARDS_USERNAME
+    passwordKey: OPENSEARCH_DASHBOARDS_PASSWORD
 
   resources:
     requests:

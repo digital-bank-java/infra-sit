@@ -12,8 +12,8 @@ data:
     server.ssl.enabled: false
     opensearch.hosts: {{ .Values.dashboards.opensearch.hosts | toJson }}
     opensearch.ssl.verificationMode: none
-    opensearch.username: {{ .Values.dashboards.opensearch.username | quote }}
-    opensearch.password: {{ .Values.dashboards.opensearch.password | quote }}
+    opensearch.username: ${OPENSEARCH_DASHBOARDS_USERNAME}
+    opensearch.password: ${OPENSEARCH_DASHBOARDS_PASSWORD}
     opensearch.requestHeadersAllowlist: ["securitytenant", "Authorization"]
     opensearch_security.multitenancy.enabled: true
     opensearch_security.multitenancy.tenants.preferred: ["Private", "Global"]

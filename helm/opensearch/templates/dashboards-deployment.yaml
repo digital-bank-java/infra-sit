@@ -26,40 +26,36 @@ spec:
           imagePullPolicy: {{ .Values.dashboards.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.dashboards.containerSecurityContext | nindent 12 }}
+          env:
+            - name: OPENSEARCH_DASHBOARDS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "dashboards.opensearch.existingSecret is required" .Values.dashboards.opensearch.existingSecret }}
+                  key: {{ required "dashboards.opensearch.usernameKey is required" .Values.dashboards.opensearch.usernameKey }}
+            - name: OPENSEARCH_DASHBOARDS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "dashboards.opensearch.existingSecret is required" .Values.dashboards.opensearch.existingSecret }}
+                  key: {{ required "dashboards.opensearch.passwordKey is required" .Values.dashboards.opensearch.passwordKey }}
           ports:
             - name: http
               containerPort: {{ .Values.dashboards.service.port }}
           startupProbe:
-            httpGet:
-              path: /api/status
+            tcpSocket:
               port: http
-              scheme: HTTP
-              httpHeaders:
-                - name: Authorization
-                  value: {{ include "opensearch.dashboardsProbeAuthorization" . }}
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 60
           readinessProbe:
-            httpGet:
-              path: /api/status
+            tcpSocket:
               port: http
-              scheme: HTTP
-              httpHeaders:
-                - name: Authorization
-                  value: {{ include "opensearch.dashboardsProbeAuthorization" . }}
             initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 12
           livenessProbe:
-            httpGet:
-              path: /api/status
+            tcpSocket:
               port: http
-              scheme: HTTP
-              httpHeaders:
-                - name: Authorization
-                  value: {{ include "opensearch.dashboardsProbeAuthorization" . }}
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 5
