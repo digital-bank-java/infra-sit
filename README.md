@@ -201,6 +201,8 @@ redis:6379
 
 This is a single-replica Redis StatefulSet with append-only persistence on a local Docker Desktop PVC. The PVC protects data across a pod restart, but local SIT does not provide production-grade high availability, backup, failover, or disaster recovery. Do not put production credentials or business-critical data in this instance.
 
+Redis uses the `noeviction` memory policy for rate-limit state. When the configured memory limit is reached, Redis rejects writes instead of silently evicting counters and resetting quotas. Monitor capacity and address write failures before they affect gateway traffic.
+
 This chart deploys a single Kafka broker in KRaft mode for local SIT only. It does not deploy ZooKeeper.
 
 Kafka is required before implementing event-driven transaction flows such as:
