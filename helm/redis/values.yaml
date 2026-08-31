@@ -12,7 +12,7 @@ redis:
   appendOnly: true
   appendFsync: everysec
   maxmemory: "256mb"
-  maxmemoryPolicy: allkeys-lru
+  maxmemoryPolicy: noeviction
 
 storage:
   size: 1Gi
