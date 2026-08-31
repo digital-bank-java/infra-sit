@@ -243,14 +243,13 @@ read -r -s -p "Local SIT Dashboards password: " OPENSEARCH_DASHBOARDS_PASSWORD &
 
 printf '%s' "$OPENSEARCH_DASHBOARDS_PASSWORD" | kubectl create secret generic opensearch-dashboards \
   --namespace digital-bank-sit \
-  --from-literal=OPENSEARCH_DASHBOARDS_USERNAME=kibanaserver \
   --from-file=OPENSEARCH_DASHBOARDS_PASSWORD=/dev/stdin \
   --dry-run=client -o yaml | kubectl apply -f -
 
 unset OPENSEARCH_DASHBOARDS_PASSWORD
 ```
 
-The chart injects these Secret keys into the Dashboards container and uses environment-variable references in its configuration. The rendered ConfigMap and probes contain no password. The `kibanaserver` account is only a local SIT bootstrap identity; use a managed, least-privilege identity with TLS verification enabled before UAT or PROD.
+The chart uses the fixed non-secret username `kibanaserver` and injects only the password into the Dashboards container. On install and upgrade, a short-lived Helm hook uses the OpenSearch security administration tool and the bundled local admin certificate to back up the live internal-user configuration, replace only the `kibanaserver` hash, and reload that preserved configuration. The rendered manifests contain no password. This bootstrap is for local SIT only; use a managed, least-privilege identity with TLS verification enabled before UAT or PROD.
 
 Install the chart:
 
@@ -309,7 +308,7 @@ Expose Dashboards only to the local workstation when needed:
 kubectl port-forward --namespace digital-bank-sit service/opensearch-dashboards 5601:5601
 ```
 
-Open `http://localhost:5601` and sign in with the local OpenSearch admin password created above. Dashboards-to-OpenSearch requests use the separate `kibanaserver` Secret created above; this is local SIT bootstrap configuration only and must be replaced with a managed service identity before any UAT or production mapping.
+Open `http://localhost:5601` and sign in with the local OpenSearch admin password created above. Dashboards-to-OpenSearch requests use the `kibanaserver` password provisioned from the separate Secret above. This is local SIT bootstrap configuration only and must be replaced with a managed service identity before any UAT or production mapping.
 
 This is intentionally a single-node, one-replica deployment. Persistence is enabled by default through a `ReadWriteOnce` PVC and can be changed with `opensearch.persistence.enabled`, `opensearch.persistence.size`, `opensearch.persistence.storageClassName`, and `opensearch.persistence.accessModes`. CPU, memory, JVM heap, Dashboards replica count, image tags, and namespace are configurable in `values.yaml` and `values-sit.yaml`. Disabling persistence uses `emptyDir` and loses all indexes when the pod is removed.
 

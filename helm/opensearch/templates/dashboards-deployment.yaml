@@ -27,11 +27,6 @@ spec:
           securityContext:
             {{- toYaml .Values.dashboards.containerSecurityContext | nindent 12 }}
           env:
-            - name: OPENSEARCH_DASHBOARDS_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ required "dashboards.opensearch.existingSecret is required" .Values.dashboards.opensearch.existingSecret }}
-                  key: {{ required "dashboards.opensearch.usernameKey is required" .Values.dashboards.opensearch.usernameKey }}
             - name: OPENSEARCH_DASHBOARDS_PASSWORD
               valueFrom:
                 secretKeyRef:

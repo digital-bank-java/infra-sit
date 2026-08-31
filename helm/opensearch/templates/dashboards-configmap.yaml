@@ -12,7 +12,7 @@ data:
     server.ssl.enabled: false
     opensearch.hosts: {{ .Values.dashboards.opensearch.hosts | toJson }}
     opensearch.ssl.verificationMode: none
-    opensearch.username: ${OPENSEARCH_DASHBOARDS_USERNAME}
+    opensearch.username: "kibanaserver"
     opensearch.password: ${OPENSEARCH_DASHBOARDS_PASSWORD}
     opensearch.requestHeadersAllowlist: ["securitytenant", "Authorization"]
     opensearch_security.multitenancy.enabled: true
