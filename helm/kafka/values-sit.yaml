@@ -20,6 +20,8 @@ topicProvisioning:
     - account.reservation.released.v1.dlq
     - account.reservation.expired.v1
     - account.reservation.expired.v1.dlq
+    - ledger.posting.requested.v1
+    - ledger.posting.requested.v1.dlq
     - ledger.posting.completed.v1
     - ledger.posting.completed.v1.dlq
     - ledger.posting.failed.v1
