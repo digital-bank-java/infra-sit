@@ -176,6 +176,44 @@ Kafka is required before implementing event-driven transaction flows such as:
 - transaction saga orchestration;
 - future outbox/inbox integration tests.
 
+The local SIT Kafka chart provisions the current event topics deterministically during `helm upgrade --install` and keeps Kafka auto topic creation disabled. The provisioned topics are:
+
+```text
+account.reservation.requested.v1
+account.reservation.requested.v1.dlq
+account.reservation.release-requested.v1
+account.reservation.release-requested.v1.dlq
+account.reservation.accepted.v1
+account.reservation.accepted.v1.dlq
+account.reservation.rejected.v1
+account.reservation.rejected.v1.dlq
+account.reservation.released.v1
+account.reservation.released.v1.dlq
+account.reservation.expired.v1
+account.reservation.expired.v1.dlq
+ledger.posting.completed.v1
+ledger.posting.completed.v1.dlq
+ledger.posting.failed.v1
+ledger.posting.failed.v1.dlq
+```
+
+Verify topic provisioning:
+
+```bash
+kubectl get jobs -n digital-bank-sit
+
+kubectl logs -n digital-bank-sit job/kafka-topic-provisioning
+
+kubectl exec -n digital-bank-sit kafka-0 -- \
+  /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+```
+
+Verify Kafka auto topic creation is disabled:
+
+```bash
+kubectl exec -n digital-bank-sit kafka-0 -- printenv KAFKA_AUTO_CREATE_TOPICS_ENABLE
+```
+
 ## Install AKHQ Kafka Dashboard
 
 AKHQ is tooling, not a core banking runtime dependency. Install it into the tooling namespace:
