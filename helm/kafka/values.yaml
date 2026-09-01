@@ -18,6 +18,12 @@ kafka:
   transactionStateLogMinIsr: 1
   groupInitialRebalanceDelayMs: 0
 
+topicProvisioning:
+  enabled: false
+  partitions: 1
+  replicationFactor: 1
+  topics: []
+
 storage:
   size: 1Gi
 

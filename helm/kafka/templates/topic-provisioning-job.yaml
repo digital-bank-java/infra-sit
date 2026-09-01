@@ -1,0 +1,53 @@
+{{- if and .Values.topicProvisioning.enabled (gt (len .Values.topicProvisioning.topics) 0) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kafka.fullname" . }}-topic-provisioning
+  namespace: {{ include "kafka.namespace" . }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "kafka.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: topic-provisioning
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              bootstrap_server="{{ include "kafka.bootstrapServer" . }}"
+              kafka_topics_bin="/opt/kafka/bin/kafka-topics.sh"
+
+              for attempt in {1..60}; do
+                if "$kafka_topics_bin" --bootstrap-server "$bootstrap_server" --list >/dev/null 2>&1; then
+                  break
+                fi
+
+                if [ "$attempt" -eq 60 ]; then
+                  echo "Kafka broker did not become ready for topic provisioning" >&2
+                  exit 1
+                fi
+
+                sleep 5
+              done
+
+              {{- range .Values.topicProvisioning.topics }}
+              "$kafka_topics_bin" \
+                --bootstrap-server "$bootstrap_server" \
+                --if-not-exists \
+                --create \
+                --topic {{ . | quote }} \
+                --partitions {{ $.Values.topicProvisioning.partitions }} \
+                --replication-factor {{ $.Values.topicProvisioning.replicationFactor }}
+              {{- end }}
+{{- end }}

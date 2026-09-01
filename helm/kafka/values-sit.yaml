@@ -1,4 +1,29 @@
 namespaceOverride: digital-bank-sit
 
+kafka:
+  autoCreateTopics: false
+
+topicProvisioning:
+  enabled: true
+  partitions: 1
+  replicationFactor: 1
+  topics:
+    - account.reservation.requested.v1
+    - account.reservation.requested.v1.dlq
+    - account.reservation.release-requested.v1
+    - account.reservation.release-requested.v1.dlq
+    - account.reservation.accepted.v1
+    - account.reservation.accepted.v1.dlq
+    - account.reservation.rejected.v1
+    - account.reservation.rejected.v1.dlq
+    - account.reservation.released.v1
+    - account.reservation.released.v1.dlq
+    - account.reservation.expired.v1
+    - account.reservation.expired.v1.dlq
+    - ledger.posting.completed.v1
+    - ledger.posting.completed.v1.dlq
+    - ledger.posting.failed.v1
+    - ledger.posting.failed.v1.dlq
+
 storage:
   size: 1Gi

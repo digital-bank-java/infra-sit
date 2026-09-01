@@ -10,6 +10,14 @@ kafka
 {{ include "kafka.name" . }}
 {{- end -}}
 
+{{- define "kafka.bootstrapHost" -}}
+{{ include "kafka.fullname" . }}.{{ include "kafka.namespace" . }}.svc.cluster.local
+{{- end -}}
+
+{{- define "kafka.bootstrapServer" -}}
+{{ include "kafka.bootstrapHost" . }}:{{ .Values.service.clientPort }}
+{{- end -}}
+
 {{- define "kafka.labels" -}}
 app.kubernetes.io/name: {{ include "kafka.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}

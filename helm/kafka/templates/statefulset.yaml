@@ -35,7 +35,7 @@ spec:
             - name: KAFKA_LISTENERS
               value: PLAINTEXT://:{{ .Values.service.clientPort }},CONTROLLER://:{{ .Values.service.controllerPort }}
             - name: KAFKA_ADVERTISED_LISTENERS
-              value: PLAINTEXT://{{ include "kafka.fullname" . }}.{{ include "kafka.namespace" . }}.svc.cluster.local:{{ .Values.service.clientPort }}
+              value: PLAINTEXT://{{ include "kafka.bootstrapHost" . }}:{{ .Values.service.clientPort }}
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
               value: CONTROLLER
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
