@@ -134,6 +134,49 @@ The local SIT Secret created above is suitable only for Docker Desktop SIT. Use 
 
 The chart references the existing Kubernetes Secret instead of rendering a password into Helm output. This keeps credentials out of Git history, pull request diffs, and CI logs.
 
+## Shared Auth JWT Secret For SIT
+
+Auth Service and Transaction Service use the same local SIT HMAC signing secret.
+The secret is stored in the `auth-service-secrets` Kubernetes Secret in
+`digital-bank-sit`; it is not stored in this repository, `config-repo`, Helm
+values, issue bodies, or pull requests.
+
+Create or replace the local SIT secret by entering a synthetic base64-encoded
+value interactively. The input is sent through standard input so the secret
+value is not placed in shell history or visible as a process argument:
+
+```bash
+read -r -s -p "Local SIT Auth JWT secret (base64, 32+ decoded bytes): " AUTH_JWT_SECRET && printf '\n'
+
+printf '%s' "$AUTH_JWT_SECRET" | kubectl create secret generic auth-service-secrets \
+  --namespace digital-bank-sit \
+  --from-file=jwt-secret=/dev/stdin \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+unset AUTH_JWT_SECRET
+```
+
+For the Auth Service fixture login flow, add its separately managed
+`fixture-password-hash` key through the approved local secret procedure. The
+source password must never be stored; Auth Service expects a BCrypt hash. Both
+services must continue to reference the same `auth-service-secrets` Secret,
+with Transaction Service using `jwt-secret`.
+
+Verify only the presence and decoded length of the signing secret; do not print
+the value:
+
+```bash
+kubectl get secret auth-service-secrets -n digital-bank-sit
+kubectl get secret auth-service-secrets -n digital-bank-sit \
+  -o jsonpath='{.data.jwt-secret}' | base64 -D | wc -c
+```
+
+The decoded length must be at least 32 bytes. Recreate this throwaway Secret
+after resetting Docker Desktop Kubernetes or rotating the local SIT key. UAT
+and PROD must use AWS Secrets Manager with External Secrets Operator or an
+equivalent controlled secret-delivery mechanism; this local procedure must not
+be copied to those environments.
+
 For AWS UAT and production, application databases should use Amazon RDS PostgreSQL and credentials should come from AWS Secrets Manager, typically exposed to Kubernetes through External Secrets Operator or an equivalent controlled mechanism.
 
 ## Install Shared Kafka
