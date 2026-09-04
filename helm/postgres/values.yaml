@@ -33,3 +33,4 @@ databases:
   - transaction_service
   - payment_service
   - notification_service
+  - mfa_service

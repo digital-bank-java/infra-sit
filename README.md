@@ -26,6 +26,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | Kafka | `helm/kafka` | Shared local SIT event broker for service integration and future saga/event flows. |
 | AKHQ | `helm/akhq` | Local SIT Kafka dashboard for inspecting topics, messages, and consumer groups. |
 | OpenSearch and OpenSearch Dashboards | `helm/opensearch` | Local SIT search and dashboard workloads for future centralized logging. |
+| Redis | `helm/redis` | Shared local SIT state store for API Gateway rate limiting and resilience coordination. |
 
 ## Repository Model
 
@@ -120,6 +121,7 @@ account_service
 transaction_service
 payment_service
 notification_service
+mfa_service
 ```
 
 The currently active service databases are:
@@ -130,6 +132,54 @@ account_service
 ```
 
 The remaining databases are provisioned for planned services and are not active yet.
+
+## MFA Service SIT Secret
+
+MFA Service requires the externally managed `mfa-service-secrets` Kubernetes
+Secret in `digital-bank-sit` with the `MFA_TOTP_ENCRYPTION_KEY` key. This is a
+throwaway SIT encryption key for protecting TOTP secrets at rest. Never put the
+key value in this repository, Config Server Git, Helm values, issue bodies,
+comments, pull requests, shell history, or logs. UAT and PROD remain deferred
+to controlled external secret management.
+
+Generate and inject a new development-only key without placing the value in a
+command argument or printing it:
+
+```bash
+openssl rand -base64 32 | tr -d '\n' | kubectl create secret generic mfa-service-secrets \
+  --namespace digital-bank-sit \
+  --from-file=MFA_TOTP_ENCRYPTION_KEY=/dev/stdin \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+To inject or replace a key supplied through an approved secure channel, enter
+it silently and pass it through standard input:
+
+```bash
+read -r -s -p "Local SIT MFA TOTP encryption key (base64, 32 decoded bytes): " MFA_TOTP_ENCRYPTION_KEY && printf '\n'
+
+printf '%s' "$MFA_TOTP_ENCRYPTION_KEY" | kubectl create secret generic mfa-service-secrets \
+  --namespace digital-bank-sit \
+  --from-file=MFA_TOTP_ENCRYPTION_KEY=/dev/stdin \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+unset MFA_TOTP_ENCRYPTION_KEY
+```
+
+Verify only that the Secret exists; do not decode or print its data:
+
+```bash
+kubectl get secret mfa-service-secrets --namespace digital-bank-sit
+```
+
+Remove the external Secret when resetting the local SIT environment or
+rotating the key. This does not remove the `mfa_service` database or its data:
+
+```bash
+kubectl delete secret mfa-service-secrets \
+  --namespace digital-bank-sit \
+  --ignore-not-found
+```
 
 ## Local Credentials
 
@@ -169,6 +219,41 @@ Services in the same namespace can use:
 ```text
 kafka:9092
 ```
+
+## Install Shared Redis
+
+Redis is shared local SIT infrastructure for gateway rate limiting and resilience state. It is not exposed outside the cluster.
+
+```bash
+helm upgrade --install redis helm/redis \
+  --namespace digital-bank-sit \
+  --create-namespace \
+  --values helm/redis/values-sit.yaml \
+  --wait \
+  --timeout 5m
+```
+
+Verify:
+
+```bash
+kubectl get pods,svc,pvc -n digital-bank-sit -l app.kubernetes.io/name=redis
+```
+
+The in-cluster Redis service name is:
+
+```text
+redis.digital-bank-sit.svc.cluster.local:6379
+```
+
+Services in the same namespace can use:
+
+```text
+redis:6379
+```
+
+This is a single-replica Redis StatefulSet with append-only persistence on a local Docker Desktop PVC. The PVC protects data across a pod restart, but local SIT does not provide production-grade high availability, backup, failover, or disaster recovery. Do not put production credentials or business-critical data in this instance.
+
+Redis uses the `noeviction` memory policy for rate-limit state. When the configured memory limit is reached, Redis rejects writes instead of silently evicting counters and resetting quotas. Monitor capacity and address write failures before they affect gateway traffic.
 
 This chart deploys a single Kafka broker in KRaft mode for local SIT only. It does not deploy ZooKeeper.
 
@@ -359,11 +444,13 @@ Keep AKHQ access local-only for SIT. Do not expose it with a public LoadBalancer
 Local SIT:
 PostgreSQL StatefulSet + PVC in Docker Desktop Kubernetes
 Kafka StatefulSet + PVC in Docker Desktop Kubernetes
+Redis StatefulSet + PVC in Docker Desktop Kubernetes
 AKHQ Deployment in Docker Desktop Kubernetes tooling namespace
 OpenSearch StatefulSet + PVC and OpenSearch Dashboards Deployment in Docker Desktop Kubernetes
 
 AWS UAT/PROD:
 Amazon RDS PostgreSQL, private subnets, IAM-controlled access, managed backups, Multi-AZ as needed
+Amazon ElastiCache for Redis or Valkey, private subnets, encryption, authentication, replication, automatic failover, backups, and monitoring
 Managed or separately operated Kafka-compatible event streaming, private networking, IAM or mTLS/SASL access control, encryption, monitoring, and retention policies
 Kafka dashboard access only through private networking, SSO/RBAC, and audited administrative access
 Amazon OpenSearch Service domain in private VPC subnets with IAM/SigV4, fine-grained access control, managed TLS, encryption, snapshots, scaling, and CloudWatch integration
@@ -416,6 +503,7 @@ This repository does not provision a Kubernetes cluster dashboard. Cloud infrast
 ```bash
 helm uninstall akhq --namespace digital-bank-tooling
 helm uninstall opensearch --namespace digital-bank-sit
+helm uninstall redis --namespace digital-bank-sit
 helm uninstall kafka --namespace digital-bank-sit
 helm uninstall postgres --namespace digital-bank-sit
 ```
@@ -426,4 +514,5 @@ The persistent volume claim may remain depending on the storage class reclaim po
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=postgres
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=kafka
 kubectl delete pvc -n digital-bank-sit data-opensearch-0
+kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=redis
 ```

@@ -10,6 +10,7 @@ It should model shared infrastructure concerns, not service business logic.
 
 - shared PostgreSQL for local SIT
 - shared Kafka for local SIT event streaming
+- shared Redis for local SIT gateway rate limiting and resilience state
 - AKHQ dashboard for local SIT Kafka inspection
 - future shared tooling needed by the local integrated environment
 - infrastructure README and rollout guidance
@@ -38,6 +39,10 @@ helm upgrade --install akhq helm/akhq --namespace digital-bank-tooling --create-
 helm lint helm/opensearch --values helm/opensearch/values-sit.yaml
 helm template opensearch helm/opensearch --values helm/opensearch/values-sit.yaml
 helm upgrade --install opensearch helm/opensearch --namespace digital-bank-sit --create-namespace --values helm/opensearch/values-sit.yaml
+
+helm lint helm/redis --values helm/redis/values-sit.yaml
+helm template redis helm/redis --values helm/redis/values-sit.yaml
+helm upgrade --install redis helm/redis --namespace digital-bank-sit --create-namespace --values helm/redis/values-sit.yaml
 ```
 
 ## Infrastructure Model
@@ -48,6 +53,7 @@ helm upgrade --install opensearch helm/opensearch --namespace digital-bank-sit -
 - Local SIT uses one shared Kafka broker for event-driven integration testing.
 - Kafka is local-only infrastructure here; UAT and PROD should map this responsibility to a managed or separately operated event streaming platform.
 - AKHQ runs in `digital-bank-tooling` because it is an inspection tool, not an application runtime dependency.
+- Redis runs in `digital-bank-sit` because it is a shared application runtime dependency for local SIT gateway rate limiting and resilience state.
 
 ## Current Logical Databases
 
@@ -57,6 +63,13 @@ helm upgrade --install opensearch helm/opensearch --namespace digital-bank-sit -
 - `transaction_service`
 - `payment_service`
 - `notification_service`
+
+## Shared Redis
+
+Local SIT uses a single Redis instance exposed as the stable service `redis` in `digital-bank-sit`.
+It is a single-replica StatefulSet with a local PVC and is suitable for repeatable local testing only. It is not a highly available Redis topology and its local Docker Desktop storage is not a production durability or disaster-recovery guarantee.
+
+UAT and PROD should use a managed Redis-compatible service such as Amazon ElastiCache for Redis or Valkey, with encryption, authentication, high availability, backups, monitoring, and network access controls managed outside this chart.
 
 ## Production Mapping
 
