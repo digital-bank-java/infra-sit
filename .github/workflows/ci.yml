@@ -33,6 +33,15 @@ jobs:
           printf '%s\n' "$pvc_template" | grep -q 'helm.sh/chart: postgres-0.1.0'
           printf '%s\n' "$pvc_template" | grep -q 'app.kubernetes.io/instance: postgres'
 
+      - name: Verify PostgreSQL init password wiring
+        shell: bash
+        run: |
+          rendered="$(helm template postgres helm/postgres --values helm/postgres/values-sit.yaml --namespace digital-bank-sit)"
+          database_init="$(printf '%s\n' "$rendered" | awk '/# Source: postgres\/templates\/database-init-job.yaml/{capture=1; next} capture && /^---$/{exit} capture{print}')"
+
+          printf '%s\n' "$database_init" | grep -q 'name: PGPASSWORD'
+          printf '%s\n' "$database_init" | grep -q 'key: POSTGRES_PASSWORD'
+
       - name: Lint Kafka chart
         run: helm lint helm/kafka --values helm/kafka/values-sit.yaml
 
