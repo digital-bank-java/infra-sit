@@ -195,7 +195,11 @@ ledger.posting.completed.v1
 ledger.posting.completed.v1.dlq
 ledger.posting.failed.v1
 ledger.posting.failed.v1.dlq
+events.transfer.created.v1
+events.transfer.created.v1.dlq
 ```
+
+Notification Service consumes `events.transfer.created.v1` when its SIT consumer flag is enabled. The `.dlq` companion is provisioned for failed event handling.
 
 Verify topic provisioning:
 
