@@ -59,6 +59,8 @@ helm upgrade --install redis helm/redis --namespace digital-bank-sit --create-na
 - `transaction_service`
 - `payment_service`
 - `notification_service`
+- `mfa_service`
+- `auth_service`
 
 ## Shared Redis
 

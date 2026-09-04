@@ -65,7 +65,7 @@ spec:
     - metadata:
         name: data
         labels:
-          {{- include "postgres.labels" . | nindent 10 }}
+          {{- include "postgres.volumeClaimLabels" . | nindent 10 }}
       spec:
         accessModes:
           - ReadWriteOnce
