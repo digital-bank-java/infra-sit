@@ -117,6 +117,7 @@ account_service
 transaction_service
 payment_service
 notification_service
+mfa_service
 ```
 
 The currently active service databases are:
@@ -127,6 +128,54 @@ account_service
 ```
 
 The remaining databases are provisioned for planned services and are not active yet.
+
+## MFA Service SIT Secret
+
+MFA Service requires the externally managed `mfa-service-secrets` Kubernetes
+Secret in `digital-bank-sit` with the `MFA_TOTP_ENCRYPTION_KEY` key. This is a
+throwaway SIT encryption key for protecting TOTP secrets at rest. Never put the
+key value in this repository, Config Server Git, Helm values, issue bodies,
+comments, pull requests, shell history, or logs. UAT and PROD remain deferred
+to controlled external secret management.
+
+Generate and inject a new development-only key without placing the value in a
+command argument or printing it:
+
+```bash
+openssl rand -base64 32 | tr -d '\n' | kubectl create secret generic mfa-service-secrets \
+  --namespace digital-bank-sit \
+  --from-file=MFA_TOTP_ENCRYPTION_KEY=/dev/stdin \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+To inject or replace a key supplied through an approved secure channel, enter
+it silently and pass it through standard input:
+
+```bash
+read -r -s -p "Local SIT MFA TOTP encryption key (base64, 32 decoded bytes): " MFA_TOTP_ENCRYPTION_KEY && printf '\n'
+
+printf '%s' "$MFA_TOTP_ENCRYPTION_KEY" | kubectl create secret generic mfa-service-secrets \
+  --namespace digital-bank-sit \
+  --from-file=MFA_TOTP_ENCRYPTION_KEY=/dev/stdin \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+unset MFA_TOTP_ENCRYPTION_KEY
+```
+
+Verify only that the Secret exists; do not decode or print its data:
+
+```bash
+kubectl get secret mfa-service-secrets --namespace digital-bank-sit
+```
+
+Remove the external Secret when resetting the local SIT environment or
+rotating the key. This does not remove the `mfa_service` database or its data:
+
+```bash
+kubectl delete secret mfa-service-secrets \
+  --namespace digital-bank-sit \
+  --ignore-not-found
+```
 
 ## Local Credentials
 
