@@ -115,20 +115,19 @@ The SIT PostgreSQL instance creates separate logical databases:
 ```text
 customer_service
 account_service
+ledger_service
 transaction_service
 payment_service
 notification_service
 mfa_service
+auth_service
 ```
 
-The currently active service databases are:
-
-```text
-customer_service
-account_service
-```
-
-The remaining databases are provisioned for planned services and are not active yet.
+The chart provisions every listed database through the PostgreSQL first-boot
+initializer and an idempotent Helm post-install/post-upgrade reconciliation
+Job. The reconciliation step is important when the StatefulSet already has a
+persistent volume: changing the values list alone would not cause PostgreSQL's
+first-boot scripts to run again.
 
 ## MFA Service SIT Secret
 
