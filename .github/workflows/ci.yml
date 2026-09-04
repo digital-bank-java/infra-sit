@@ -23,6 +23,16 @@ jobs:
       - name: Render PostgreSQL chart
         run: helm template postgres helm/postgres --values helm/postgres/values-sit.yaml --namespace digital-bank-sit
 
+      - name: Verify PostgreSQL PVC template label stability
+        shell: bash
+        run: |
+          rendered="$(helm template postgres helm/postgres --values helm/postgres/values-sit.yaml --namespace digital-bank-sit)"
+          statefulset="$(printf '%s\n' "$rendered" | awk '/# Source: postgres\/templates\/statefulset.yaml/{capture=1; next} capture && /^---$/{exit} capture{print}')"
+          pvc_template="$(printf '%s\n' "$statefulset" | sed -n '/  volumeClaimTemplates:/,$p')"
+
+          printf '%s\n' "$pvc_template" | grep -q 'helm.sh/chart: postgres-0.1.0'
+          printf '%s\n' "$pvc_template" | grep -q 'app.kubernetes.io/instance: postgres'
+
       - name: Lint Kafka chart
         run: helm lint helm/kafka --values helm/kafka/values-sit.yaml
 
