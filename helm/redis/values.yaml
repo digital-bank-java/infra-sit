@@ -1,0 +1,26 @@
+namespaceOverride: ""
+
+image:
+  repository: redis
+  tag: "7.4-alpine"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 6379
+
+redis:
+  appendOnly: true
+  appendFsync: everysec
+  maxmemory: "256mb"
+  maxmemoryPolicy: noeviction
+
+storage:
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

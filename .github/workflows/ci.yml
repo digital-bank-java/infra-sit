@@ -37,3 +37,9 @@ jobs:
 
       - name: Validate Fluent Bit chart
         run: bash tests/validate.sh
+
+      - name: Lint Redis chart
+        run: helm lint helm/redis --values helm/redis/values-sit.yaml
+
+      - name: Render Redis chart
+        run: helm template redis helm/redis --values helm/redis/values-sit.yaml --namespace digital-bank-sit
