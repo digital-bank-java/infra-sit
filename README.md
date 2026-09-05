@@ -25,6 +25,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | PostgreSQL | `helm/postgres` | Shared local SIT PostgreSQL instance with separate logical databases per service. |
 | Kafka | `helm/kafka` | Shared local SIT event broker for service integration and future saga/event flows. |
 | AKHQ | `helm/akhq` | Local SIT Kafka dashboard for inspecting topics, messages, and consumer groups. |
+| Zipkin | `helm/zipkin` | Internal local SIT distributed tracing backend with in-memory storage. |
 | Fluent Bit | `helm/fluent-bit` | Local SIT Kubernetes log collector that enriches, redacts, buffers, and forwards logs to OpenSearch. |
 | OpenSearch and OpenSearch Dashboards | `helm/opensearch` | Local SIT search and dashboard workloads for future centralized logging. |
 | Redis | `helm/redis` | Shared local SIT state store for API Gateway rate limiting and resilience coordination. |
@@ -445,6 +446,35 @@ kafka.digital-bank-sit.svc.cluster.local:9092
 ```
 
 Keep AKHQ access local-only for SIT. Do not expose it with a public LoadBalancer or public Ingress.
+
+## Install Zipkin Distributed Tracing
+
+Zipkin is a local SIT observability dependency. It stores traces in memory and is intentionally
+not exposed outside the cluster.
+
+```bash
+helm upgrade --install zipkin helm/zipkin \
+  --namespace digital-bank-sit \
+  --create-namespace \
+  --values helm/zipkin/values-sit.yaml \
+  --wait \
+  --timeout 5m
+```
+
+Verify the deployment and service:
+
+```bash
+kubectl get pods,svc -n digital-bank-sit -l app.kubernetes.io/name=zipkin
+```
+
+For local inspection only, port-forward the ClusterIP service:
+
+```bash
+kubectl port-forward -n digital-bank-sit svc/zipkin 9411:9411
+```
+
+Open `http://localhost:9411` to inspect sampled SIT traces. UAT and production tracing
+backends are deferred to the AWS observability design.
 
 ## Install Fluent Bit Log Collection
 
