@@ -2,5 +2,5 @@ apiVersion: v2
 name: opensearch
 description: OpenSearch and OpenSearch Dashboards for the local Digital Bank Java SIT environment
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "2.19.0"
