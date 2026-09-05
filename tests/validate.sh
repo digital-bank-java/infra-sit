@@ -28,5 +28,6 @@ grep -q 'opensearch.requestHeadersAllowlist' "$rendered"
 grep -q 'name: OPENSEARCH_INITIAL_ADMIN_PASSWORD' "$rendered"
 grep -q 'key: OPENSEARCH_INITIAL_ADMIN_PASSWORD' "$rendered"
 grep -q 'install_demo_configuration.sh' "$rendered"
+grep -q 'helm.sh/chart: opensearch-0.1.0' "$rendered"
 
 echo "OpenSearch chart validation passed"
