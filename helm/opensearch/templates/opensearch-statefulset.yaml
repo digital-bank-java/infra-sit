@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "opensearch.fullname" . }}
+  namespace: {{ include "opensearch.namespace" . }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "opensearch.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "opensearch.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "opensearch.selectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        {{- toYaml .Values.opensearch.podSecurityContext | nindent 8 }}
+      containers:
+        - name: opensearch
+          image: "{{ .Values.opensearch.image.repository }}:{{ .Values.opensearch.image.tag }}"
+          imagePullPolicy: {{ .Values.opensearch.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.opensearch.containerSecurityContext | nindent 12 }}
+          args:
+            - opensearch
+            - "-Ecluster.name={{ .Values.opensearch.clusterName }}"
+            - "-Enode.name={{ .Values.opensearch.nodeName }}"
+            - -Ediscovery.type=single-node
+            - -Enetwork.host=0.0.0.0
+            - -Ebootstrap.memory_lock=false
+          ports:
+            - name: http
+              containerPort: {{ .Values.opensearch.service.httpPort }}
+            - name: transport
+              containerPort: {{ .Values.opensearch.service.transportPort }}
+          env:
+            - name: OPENSEARCH_JAVA_OPTS
+              value: {{ .Values.opensearch.javaOpts | quote }}
+            - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "opensearch.auth.existingSecret is required" .Values.opensearch.auth.existingSecret }}
+                  key: {{ .Values.opensearch.auth.adminPasswordKey }}
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  curl --fail --silent --show-error --insecure
+                  --user "admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD}"
+                  "https://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s"
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  curl --fail --silent --show-error --insecure
+                  --user "admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD}"
+                  "https://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s"
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  curl --fail --silent --show-error --insecure
+                  --user "admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD}"
+                  "https://127.0.0.1:9200/_cluster/health?timeout=5s"
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.opensearch.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/opensearch/data
+      {{- if not .Values.opensearch.persistence.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.opensearch.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "opensearch.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.opensearch.persistence.accessModes | nindent 10 }}
+        {{- if .Values.opensearch.persistence.storageClassName }}
+        storageClassName: {{ .Values.opensearch.persistence.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.opensearch.persistence.size }}
+  {{- end }}

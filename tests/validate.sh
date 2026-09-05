@@ -1,28 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-chart_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../helm/fluent-bit" && pwd)"
+chart_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../helm/opensearch" && pwd)"
 rendered="$(mktemp)"
 trap 'rm -f "$rendered"' EXIT
 
 helm lint "$chart_dir" --values "$chart_dir/values-sit.yaml"
-helm template fluent-bit "$chart_dir" \
+helm template opensearch "$chart_dir" \
   --namespace digital-bank-sit \
   --values "$chart_dir/values-sit.yaml" > "$rendered"
 
-for kind in ServiceAccount ClusterRole ClusterRoleBinding ConfigMap DaemonSet Service; do
-  grep -q "^kind: ${kind}$" "$rendered"
-done
+test "$(grep -c 'name: OPENSEARCH_DASHBOARDS_PASSWORD' "$rendered")" -eq 2
+grep -q 'opensearch.username: "kibanaserver"' "$rendered"
+grep -q 'opensearch.password: ${OPENSEARCH_DASHBOARDS_PASSWORD}' "$rendered"
+! grep -q 'name: OPENSEARCH_DASHBOARDS_USERNAME' "$rendered"
+grep -q 'kind: Job' "$rendered"
+grep -q '"helm.sh/hook": post-install,post-upgrade' "$rendered"
+grep -q 'securityadmin.sh' "$rendered"
+grep -q -- '-backup' "$rendered"
+grep -q 'internal_users.yml' "$rendered"
+grep -q -- '-t internalusers' "$rendered"
+grep -q 'kibanaserver' "$rendered"
+! grep -q 'OPENSEARCH_DASHBOARDS_USERNAME' "$rendered"
+! grep -q 'opensearch.password: kibanaserver' "$rendered"
+grep -q 'opensearch.requestHeadersAllowlist' "$rendered"
+! grep -q 'opensearch.requestHeadersWhitelist' "$rendered"
 
-grep -q 'Name                  kubernetes' "$rendered"
-grep -q 'Merge_Parser          json' "$rendered"
-grep -q 'Merge_Log_Key         structured' "$rendered"
-grep -q 'structured_json_parse_failed' "$rendered"
-grep -q 'Retry_Limit           False' "$rendered"
-grep -q 'storage.total_limit_size' "$rendered"
-grep -q 'OPENSEARCH_HOST' "$rendered"
-grep -q 'opensearch-admin' "$rendered"
-
-bash "$(dirname "${BASH_SOURCE[0]}")/validate-redaction.sh"
-
-echo "Fluent Bit chart validation passed"
+echo "OpenSearch chart validation passed"

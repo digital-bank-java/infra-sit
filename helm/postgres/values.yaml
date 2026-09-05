@@ -34,3 +34,4 @@ databases:
   - payment_service
   - notification_service
   - mfa_service
+  - auth_service

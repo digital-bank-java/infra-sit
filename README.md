@@ -26,6 +26,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | Kafka | `helm/kafka` | Shared local SIT event broker for service integration and future saga/event flows. |
 | AKHQ | `helm/akhq` | Local SIT Kafka dashboard for inspecting topics, messages, and consumer groups. |
 | Fluent Bit | `helm/fluent-bit` | Local SIT Kubernetes log collector that enriches, redacts, buffers, and forwards logs to OpenSearch. |
+| OpenSearch and OpenSearch Dashboards | `helm/opensearch` | Local SIT search and dashboard workloads for future centralized logging. |
 | Redis | `helm/redis` | Shared local SIT state store for API Gateway rate limiting and resilience coordination. |
 
 ## Repository Model
@@ -46,6 +47,8 @@ platform-infra-aws
 - Docker Desktop with Kubernetes enabled.
 - `kubectl` configured for the `docker-desktop` context.
 - Helm 3 or 4.
+
+OpenSearch also requires the Kubernetes node's Linux `vm.max_map_count` to be at least `262144`. Verify the node setting before installing the OpenSearch chart; OpenSearch exits its bootstrap checks when the value is lower. On Linux, set `vm.max_map_count=262144` in the host sysctl configuration and reload it. On Docker Desktop, apply the equivalent setting in the Linux VM used by Docker Desktop.
 
 Verify:
 
@@ -116,20 +119,19 @@ The SIT PostgreSQL instance creates separate logical databases:
 ```text
 customer_service
 account_service
+ledger_service
 transaction_service
 payment_service
 notification_service
 mfa_service
+auth_service
 ```
 
-The currently active service databases are:
-
-```text
-customer_service
-account_service
-```
-
-The remaining databases are provisioned for planned services and are not active yet.
+The chart provisions every listed database through the PostgreSQL first-boot
+initializer and an idempotent Helm post-install/post-upgrade reconciliation
+Job. The reconciliation step is important when the StatefulSet already has a
+persistent volume: changing the values list alone would not cause PostgreSQL's
+first-boot scripts to run again.
 
 ## MFA Service SIT Secret
 
@@ -281,7 +283,15 @@ ledger.posting.completed.v1
 ledger.posting.completed.v1.dlq
 ledger.posting.failed.v1
 ledger.posting.failed.v1.dlq
+events.transfer.created.v1
+events.transfer.created.v1.dlq
+mfa.assurance.granted.v1
+mfa.assurance.granted.v1.dlq
 ```
+
+Notification Service consumes `events.transfer.created.v1` when its SIT consumer flag is enabled. The `.dlq` companion is provisioned for failed event handling.
+
+MFA Service publishes `mfa.assurance.granted.v1` after a transfer-bound challenge succeeds. Transaction Service consumes the assurance event to resume the transfer saga, and the `.dlq` companion supports failed event handling.
 
 Verify topic provisioning:
 
@@ -299,6 +309,103 @@ Verify Kafka auto topic creation is disabled:
 ```bash
 kubectl exec -n digital-bank-sit kafka-0 -- printenv KAFKA_AUTO_CREATE_TOPICS_ENABLE
 ```
+
+## Install OpenSearch and OpenSearch Dashboards
+
+OpenSearch and OpenSearch Dashboards are deployed together by the `helm/opensearch` chart into `digital-bank-sit`. The chart uses OpenSearch `2.19.0`, a version supported by Amazon OpenSearch Service, and keeps both workloads behind internal `ClusterIP` Services.
+
+Create the local-only admin Secret without putting the password into shell history:
+
+```bash
+read -r -s -p "Local SIT OpenSearch admin password: " OPENSEARCH_INITIAL_ADMIN_PASSWORD && printf '\n'
+
+printf '%s' "$OPENSEARCH_INITIAL_ADMIN_PASSWORD" | kubectl create secret generic opensearch-admin \
+  --namespace digital-bank-sit \
+  --from-file=OPENSEARCH_INITIAL_ADMIN_PASSWORD=/dev/stdin \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+unset OPENSEARCH_INITIAL_ADMIN_PASSWORD
+```
+
+Use a strong throwaway password for local SIT. OpenSearch 2.12 and later requires a custom initial admin password when the demo security configuration is enabled. The chart references this Secret and never renders the admin password into Helm values or manifests.
+
+Create a separate Secret for the Dashboards service account. Keep the password local to the cluster and do not add it to Git:
+
+```bash
+read -r -s -p "Local SIT Dashboards password: " OPENSEARCH_DASHBOARDS_PASSWORD && printf '\n'
+
+printf '%s' "$OPENSEARCH_DASHBOARDS_PASSWORD" | kubectl create secret generic opensearch-dashboards \
+  --namespace digital-bank-sit \
+  --from-file=OPENSEARCH_DASHBOARDS_PASSWORD=/dev/stdin \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+unset OPENSEARCH_DASHBOARDS_PASSWORD
+```
+
+The chart uses the fixed non-secret username `kibanaserver` and injects only the password into the Dashboards container. On install and upgrade, a short-lived Helm hook uses the OpenSearch security administration tool and the bundled local admin certificate to back up the live internal-user configuration, replace only the `kibanaserver` hash, and reload that preserved configuration. The rendered manifests contain no password. This bootstrap is for local SIT only; use a managed, least-privilege identity with TLS verification enabled before UAT or PROD.
+
+Install the chart:
+
+```bash
+helm upgrade --install opensearch helm/opensearch \
+  --namespace digital-bank-sit \
+  --create-namespace \
+  --values helm/opensearch/values-sit.yaml \
+  --wait \
+  --timeout 10m
+```
+
+Verify the workloads, Services, and persistent volume claim:
+
+```bash
+kubectl get statefulset,deployment,pods,service,pvc \
+  --namespace digital-bank-sit \
+  -l app.kubernetes.io/instance=opensearch
+
+kubectl rollout status statefulset/opensearch \
+  --namespace digital-bank-sit \
+  --timeout=10m
+
+kubectl rollout status deployment/opensearch-dashboards \
+  --namespace digital-bank-sit \
+  --timeout=10m
+```
+
+The stable in-cluster endpoints are:
+
+```text
+opensearch.digital-bank-sit.svc.cluster.local:9200
+opensearch-dashboards.digital-bank-sit.svc.cluster.local:5601
+```
+
+Check the OpenSearch cluster health locally. Keep the port-forward and password in temporary terminals only:
+
+```bash
+kubectl port-forward --namespace digital-bank-sit service/opensearch 9200:9200
+```
+
+```bash
+export OPENSEARCH_INITIAL_ADMIN_PASSWORD="$(kubectl get secret opensearch-admin \
+  --namespace digital-bank-sit \
+  -o jsonpath='{.data.OPENSEARCH_INITIAL_ADMIN_PASSWORD}' | base64 -D)"
+
+curl --fail --insecure --user "admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD}" \
+  'https://localhost:9200/_cluster/health?wait_for_status=yellow'
+
+unset OPENSEARCH_INITIAL_ADMIN_PASSWORD
+```
+
+Expose Dashboards only to the local workstation when needed:
+
+```bash
+kubectl port-forward --namespace digital-bank-sit service/opensearch-dashboards 5601:5601
+```
+
+Open `http://localhost:5601` and sign in with the local OpenSearch admin password created above. Dashboards-to-OpenSearch requests use the `kibanaserver` password provisioned from the separate Secret above. This is local SIT bootstrap configuration only and must be replaced with a managed service identity before any UAT or production mapping.
+
+This is intentionally a single-node, one-replica deployment. Persistence is enabled by default through a `ReadWriteOnce` PVC and can be changed with `opensearch.persistence.enabled`, `opensearch.persistence.size`, `opensearch.persistence.storageClassName`, and `opensearch.persistence.accessModes`. CPU, memory, JVM heap, Dashboards replica count, image tags, and namespace are configurable in `values.yaml` and `values-sit.yaml`. Disabling persistence uses `emptyDir` and loses all indexes when the pod is removed.
+
+The default demo TLS certificates are used for the local HTTPS OpenSearch endpoint, so local probes and examples use `--insecure`. Neither Service is public by default. Centralized log collection, including Fluent Bit, is tracked separately in issue #94 and is intentionally not part of this deployment.
 
 ## Install AKHQ Kafka Dashboard
 
@@ -384,6 +491,7 @@ Kafka StatefulSet + PVC in Docker Desktop Kubernetes
 Redis StatefulSet + PVC in Docker Desktop Kubernetes
 AKHQ Deployment in Docker Desktop Kubernetes tooling namespace
 Fluent Bit DaemonSet in Docker Desktop Kubernetes
+OpenSearch StatefulSet + PVC and OpenSearch Dashboards Deployment in Docker Desktop Kubernetes
 
 AWS UAT/PROD:
 Amazon RDS PostgreSQL, private subnets, IAM-controlled access, managed backups, Multi-AZ as needed
@@ -391,6 +499,8 @@ Amazon ElastiCache for Redis or Valkey, private subnets, encryption, authenticat
 Managed or separately operated Kafka-compatible event streaming, private networking, IAM or mTLS/SASL access control, encryption, monitoring, and retention policies
 Kafka dashboard access only through private networking, SSO/RBAC, and audited administrative access
 Managed log ingestion and OpenSearch-compatible storage with private networking, TLS verification, scoped credentials, retention, and monitoring
+Amazon OpenSearch Service domain in private VPC subnets with IAM/SigV4, fine-grained access control, managed TLS, encryption, snapshots, scaling, and CloudWatch integration
+Amazon OpenSearch Dashboards endpoint provided by the managed domain; do not carry the local Dashboards Deployment or demo credentials into UAT/PROD
 ```
 
 ## Local Kubernetes Dashboard
@@ -432,12 +542,13 @@ Headlamp Desktop may be used later for UAT or production operations only when ac
 - audit logging;
 - no shared cluster-admin credentials.
 
-This repository does not provision a Kubernetes dashboard. Cloud infrastructure belongs in the future `platform-infra-aws` repository.
+This repository does not provision a Kubernetes cluster dashboard. Cloud infrastructure belongs in the future `platform-infra-aws` repository.
 
 ## Uninstall
 
 ```bash
 helm uninstall akhq --namespace digital-bank-tooling
+helm uninstall opensearch --namespace digital-bank-sit
 helm uninstall redis --namespace digital-bank-sit
 helm uninstall kafka --namespace digital-bank-sit
 helm uninstall postgres --namespace digital-bank-sit
@@ -448,5 +559,6 @@ The persistent volume claim may remain depending on the storage class reclaim po
 ```bash
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=postgres
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=kafka
+kubectl delete pvc -n digital-bank-sit data-opensearch-0
 kubectl delete pvc -n digital-bank-sit -l app.kubernetes.io/instance=redis
 ```

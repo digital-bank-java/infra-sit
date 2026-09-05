@@ -26,6 +26,10 @@ topicProvisioning:
     - ledger.posting.completed.v1.dlq
     - ledger.posting.failed.v1
     - ledger.posting.failed.v1.dlq
+    - events.transfer.created.v1
+    - events.transfer.created.v1.dlq
+    - mfa.assurance.granted.v1
+    - mfa.assurance.granted.v1.dlq
 
 storage:
   size: 1Gi

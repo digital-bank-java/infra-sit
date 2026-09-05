@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "opensearch.fullname" . }}
+  namespace: {{ include "opensearch.namespace" . }}
+  labels:
+    {{- include "opensearch.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.opensearch.service.httpPort }}
+      targetPort: http
+    - name: transport
+      port: {{ .Values.opensearch.service.transportPort }}
+      targetPort: transport
+  selector:
+    {{- include "opensearch.selectorLabels" . | nindent 4 }}

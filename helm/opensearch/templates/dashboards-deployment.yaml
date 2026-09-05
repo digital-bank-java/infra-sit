@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "opensearch.dashboardsName" . }}
+  namespace: {{ include "opensearch.namespace" . }}
+  labels:
+    {{- include "opensearch.dashboardsLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.dashboards.replicas }}
+  selector:
+    matchLabels:
+      {{- include "opensearch.dashboardsSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/dashboards-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "opensearch.dashboardsSelectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.dashboards.podSecurityContext | nindent 8 }}
+      containers:
+        - name: dashboards
+          image: "{{ .Values.dashboards.image.repository }}:{{ .Values.dashboards.image.tag }}"
+          imagePullPolicy: {{ .Values.dashboards.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.dashboards.containerSecurityContext | nindent 12 }}
+          env:
+            - name: OPENSEARCH_DASHBOARDS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "dashboards.opensearch.existingSecret is required" .Values.dashboards.opensearch.existingSecret }}
+                  key: {{ required "dashboards.opensearch.passwordKey is required" .Values.dashboards.opensearch.passwordKey }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dashboards.service.port }}
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.dashboards.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/opensearch-dashboards/config/opensearch_dashboards.yml
+              subPath: opensearch_dashboards.yml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "opensearch.dashboardsName" . }}-config

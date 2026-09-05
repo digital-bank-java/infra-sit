@@ -13,8 +13,15 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 {{- end -}}
 
+{{/* StatefulSet volumeClaimTemplates are immutable after creation. */}}
+{{- define "postgres.volumeClaimLabels" -}}
+app.kubernetes.io/name: {{ include "postgres.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: postgres-0.1.0
+{{- end -}}
+
 {{- define "postgres.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "postgres.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
-
