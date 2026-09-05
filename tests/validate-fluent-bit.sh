@@ -24,5 +24,6 @@ grep -q 'OPENSEARCH_HOST' "$rendered"
 grep -q 'opensearch-admin' "$rendered"
 
 bash "$(dirname "${BASH_SOURCE[0]}")/validate-redaction.sh"
+bash "$(dirname "${BASH_SOURCE[0]}")/validate-fluent-bit-docker.sh"
 
 echo "Fluent Bit chart validation passed"

@@ -34,6 +34,20 @@ data:
         DB.Sync               Normal
         storage.type          filesystem
 
+    {{- if .Values.dockerFallback.enabled }}
+    [INPUT]
+        Name                  tail
+        Path                  /var/lib/docker/containers/*/*-json.log
+        Parser                docker
+        Tag                   docker.*
+        Mem_Buf_Limit         50MB
+        Skip_Long_Lines       On
+        Refresh_Interval      10
+        DB                    {{ .Values.dockerFallback.databasePath }}
+        DB.Sync               Normal
+        storage.type          filesystem
+    {{- end }}
+
     [FILTER]
         Name                  kubernetes
         Match                 kube.*
@@ -55,6 +69,30 @@ data:
         call                  process_record
         time_as_table         true
 
+    {{- if .Values.dockerFallback.enabled }}
+    [FILTER]
+        Name                  lua
+        Match                 docker.*
+        script                /fluent-bit/scripts/redact.lua
+        call                  prepare_docker_record
+        time_as_table         true
+
+    [FILTER]
+        Name                  parser
+        Match                 docker.*
+        Key_Name              _docker_raw_log
+        Parser                json
+        Preserve_Key          Off
+        Reserve_Data          On
+
+    [FILTER]
+        Name                  lua
+        Match                 docker.*
+        script                /fluent-bit/scripts/redact.lua
+        call                  process_docker_record
+        time_as_table         true
+    {{- end }}
+
     [OUTPUT]
         Name                  opensearch
         Match                 kube.*
@@ -72,6 +110,25 @@ data:
         Retry_Limit           False
         storage.total_limit_size ${OPENSEARCH_BUFFER_LIMIT}
 
+    {{- if .Values.dockerFallback.enabled }}
+    [OUTPUT]
+        Name                  opensearch
+        Match                 docker.*
+        Host                  ${OPENSEARCH_HOST}
+        Port                  ${OPENSEARCH_PORT}
+        HTTP_User             ${OPENSEARCH_USERNAME}
+        HTTP_Passwd           ${OPENSEARCH_PASSWORD}
+        tls                   ${OPENSEARCH_TLS}
+        tls.verify            ${OPENSEARCH_TLS_VERIFY}
+        Suppress_Type_Name    On
+        Logstash_Format       On
+        Logstash_Prefix       ${OPENSEARCH_INDEX_PREFIX}
+        Logstash_DateFormat   %Y.%m.%d
+        Replace_Dots          On
+        Retry_Limit           False
+        storage.total_limit_size ${OPENSEARCH_BUFFER_LIMIT}
+    {{- end }}
+
   parsers.conf: |
     [PARSER]
         Name        cri
@@ -84,6 +141,13 @@ data:
     [PARSER]
         Name   json
         Format json
+
+    [PARSER]
+        Name        docker
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
 
   redact.lua: |
     local sensitive_fragments = {
@@ -132,6 +196,108 @@ data:
         end
       end
       return value
+    end
+
+    local docker_metadata_labels = {
+      pod_name = "io.kubernetes.pod.name",
+      namespace_name = "io.kubernetes.pod.namespace",
+      container_name = "io.kubernetes.container.name",
+      pod_uid = "io.kubernetes.pod.uid",
+      log_path = "io.kubernetes.container.logpath"
+    }
+
+    local function escape_pattern(value)
+      return string.gsub(value, "([^%w])", "%%%1")
+    end
+
+    local function read_docker_label(document, label)
+      local key = escape_pattern(label)
+      return string.match(document, '"' .. key .. '"%s*:%s*"([^"\\]*)"')
+    end
+
+    local function docker_container_id(tag)
+      local candidate = string.match(tag or "", "%.([0-9a-fA-F]+)%-json%.log$")
+      if candidate ~= nil and string.len(candidate) == 64 then
+        return string.lower(candidate)
+      end
+      return nil
+    end
+
+    local function docker_kubernetes_metadata(tag)
+      local container_id = docker_container_id(tag)
+      if container_id == nil then
+        return nil
+      end
+
+      local config_path = "/var/lib/docker/containers/" .. container_id .. "/config.v2.json"
+      local config_file = io.open(config_path, "r")
+      local metadata = { pod_id = container_id }
+      if config_file == nil then
+        return metadata
+      end
+
+      local document = config_file:read("*a")
+      config_file:close()
+      if document == nil then
+        return metadata
+      end
+
+      for field, label in pairs(docker_metadata_labels) do
+        local value = read_docker_label(document, label)
+        if value ~= nil and value ~= "" then
+          metadata[field] = value
+        end
+      end
+      return metadata
+    end
+
+    local function json_like(value)
+      if type(value) ~= "string" then
+        return false
+      end
+      local first_character = string.match(value, "^%s*(.)") or ""
+      return first_character == "{" or first_character == "["
+    end
+
+    function prepare_docker_record(tag, timestamp, record)
+      record["_docker_raw_log"] = record["log"]
+      record["log"] = nil
+      return 1, timestamp, record
+    end
+
+    function process_docker_record(tag, timestamp, record)
+      local raw_log = record["_docker_raw_log"]
+      record["_docker_raw_log"] = nil
+      record["kubernetes"] = docker_kubernetes_metadata(tag)
+      record["logging_source"] = "docker-json"
+
+      if raw_log ~= nil then
+        if json_like(raw_log) then
+          record["logging_parse_status"] = "invalid"
+          record["logging_invalid_event"] = true
+          record["invalid_event_reason"] = "structured_json_parse_failed"
+          record["log"] = "[REDACTED_INVALID_STRUCTURED_LOG]"
+        else
+          record["logging_parse_status"] = "unstructured"
+          record["logging_invalid_event"] = false
+          record["log"] = redact_string(raw_log)
+        end
+      else
+        local structured = {}
+        for key, value in pairs(record) do
+          if key ~= "time" and key ~= "stream" and key ~= "kubernetes" and key ~= "logging_source" then
+            structured[key] = value
+            record[key] = nil
+          end
+        end
+        record["structured"] = structured
+        redact(record)
+        record["logging_parse_status"] = "valid"
+        record["logging_invalid_event"] = false
+      end
+
+      record["logging_agent"] = "fluent-bit"
+      return 1, timestamp, record
     end
 
     function process_record(tag, timestamp, record)

@@ -9,3 +9,7 @@ opensearch:
   existingSecret: opensearch-admin
   passwordKey: OPENSEARCH_INITIAL_ADMIN_PASSWORD
   indexPrefix: digital-bank-sit
+
+dockerFallback:
+  enabled: true
+  hostPath: /var/lib/docker/containers

@@ -448,7 +448,9 @@ Keep AKHQ access local-only for SIT. Do not expose it with a public LoadBalancer
 
 ## Install Fluent Bit Log Collection
 
-Fluent Bit runs as a DaemonSet in `digital-bank-sit`, so one collector runs on each Kubernetes node and reads the node's container stdout/stderr log files. The Kubernetes filter enriches records with pod, namespace, container, and node metadata. Structured JSON records are parsed under `structured` and passed through the redaction filter before they are sent to OpenSearch. Plain-text records are retained as `unstructured` records with inline credential redaction.
+Fluent Bit runs as a DaemonSet in `digital-bank-sit`, so one collector runs on each Kubernetes node and reads the node's container stdout/stderr log files. The standard `/var/log/containers/*.log` CRI input and Kubernetes filter are the convention for production, UAT, and any runtime that exposes Kubernetes container logs there. Structured JSON records are parsed under `structured` and passed through the redaction filter before they are sent to OpenSearch. Plain-text records are retained as `unstructured` records with inline credential redaction.
+
+Local Docker Desktop Kubernetes uses the chart's explicit `dockerFallback` mode in `helm/fluent-bit/values-sit.yaml`. When enabled, Fluent Bit also tails `/var/lib/docker/containers/*/*-json.log` with the Docker JSON parser and mounts the configured host path read-only. This fallback is disabled in the generic `values.yaml`; do not use it as the default for containerd, AWS, UAT, or PROD runtimes. The Lua enrichment reads only the matching container's `config.v2.json`, extracts the five Kubernetes metadata labels needed for pod name, namespace, container name, pod UID, and log path, and emits them under `kubernetes` with the container ID. It never emits the Docker config document or environment values.
 
 The chart expects the existing local SIT OpenSearch Secret. It does not create or commit credentials:
 
@@ -471,6 +473,8 @@ kubectl logs -n digital-bank-sit -l app.kubernetes.io/name=fluent-bit --tail=50
 The collector sends to the configurable OpenSearch endpoint in `values-sit.yaml`. Local SIT uses the in-cluster `opensearch.digital-bank-sit.svc.cluster.local:9200` address over HTTPS, with the local-only TLS verification setting matching the local OpenSearch chart. UAT and PROD should replace the endpoint, TLS trust configuration, and credential reference through environment-specific deployment values; application services do not need to change.
 
 Filesystem buffering is enabled for backpressure and transient OpenSearch failures. `Retry_Limit False` allows Fluent Bit to retry until the record is accepted or the configured storage limit is reached. The chart uses a dedicated node path for its buffer and tail database. Monitor buffer usage and Fluent Bit health in a real deployment.
+
+Both input paths use filesystem-backed buffering, bounded in-memory chunks, and separate tail databases. Docker-mode parser failures are explicit invalid events: JSON-looking payloads are replaced with `REDACTED_INVALID_STRUCTURED_LOG`, while non-JSON payloads remain `unstructured` after inline redaction. Missing or malformed Docker metadata does not expose the config file and leaves the event observable with the Docker source marker.
 
 JSON-looking records that cannot be parsed as structured JSON are retained as observable events with `logging_parse_status=invalid`, `logging_invalid_event=true`, and `invalid_event_reason=structured_json_parse_failed`. Their raw log field is replaced before output, preventing an invalid record from bypassing redaction. Plain-text records use `logging_parse_status=unstructured` and retain their message after inline credential redaction. Query the `digital-bank-sit-*` OpenSearch indexes for these fields when investigating application logging problems.
 
