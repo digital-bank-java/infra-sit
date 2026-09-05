@@ -1,7 +1,7 @@
 namespaceOverride: ""
 
 image:
-  repository: openzipkin/zipkin
+  repository: openzipkin/zipkin-slim
   tag: "3.6.1"
   pullPolicy: IfNotPresent
 
