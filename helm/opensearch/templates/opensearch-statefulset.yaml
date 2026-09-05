@@ -97,7 +97,12 @@ spec:
     - metadata:
         name: data
         labels:
-          {{- include "opensearch.labels" . | nindent 10 }}
+          app.kubernetes.io/name: {{ include "opensearch.name" . }}
+          app.kubernetes.io/instance: {{ .Release.Name }}
+          app.kubernetes.io/managed-by: {{ .Release.Service }}
+          # StatefulSet volumeClaimTemplate metadata is immutable after creation.
+          # Keep this label stable when the chart version changes.
+          helm.sh/chart: opensearch-0.1.0
       spec:
         accessModes:
           {{- toYaml .Values.opensearch.persistence.accessModes | nindent 10 }}
