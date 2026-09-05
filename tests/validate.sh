@@ -25,5 +25,8 @@ grep -q 'kibanaserver' "$rendered"
 ! grep -q 'opensearch.password: kibanaserver' "$rendered"
 grep -q 'opensearch.requestHeadersAllowlist' "$rendered"
 ! grep -q 'opensearch.requestHeadersWhitelist' "$rendered"
+grep -q 'name: OPENSEARCH_INITIAL_ADMIN_PASSWORD' "$rendered"
+grep -q 'key: OPENSEARCH_INITIAL_ADMIN_PASSWORD' "$rendered"
+grep -q 'install_demo_configuration.sh' "$rendered"
 
 echo "OpenSearch chart validation passed"

@@ -342,7 +342,7 @@ printf '%s' "$OPENSEARCH_DASHBOARDS_PASSWORD" | kubectl create secret generic op
 unset OPENSEARCH_DASHBOARDS_PASSWORD
 ```
 
-The chart uses the fixed non-secret username `kibanaserver` and injects only the password into the Dashboards container. On install and upgrade, a short-lived Helm hook uses the OpenSearch security administration tool and the bundled local admin certificate to back up the live internal-user configuration, replace only the `kibanaserver` hash, and reload that preserved configuration. The rendered manifests contain no password. This bootstrap is for local SIT only; use a managed, least-privilege identity with TLS verification enabled before UAT or PROD.
+The chart uses the fixed non-secret username `kibanaserver` and injects only the password into the Dashboards container. On install and upgrade, a short-lived Helm hook runs the image's supported local demo security setup so its admin certificate files exist, then uses the OpenSearch security administration tool to back up the live internal-user configuration, replace only the `kibanaserver` hash, and reload that preserved configuration. The admin password is supplied from the existing Secret and the rendered manifests contain no password. This bootstrap is for local SIT only; use a managed, least-privilege identity with TLS verification enabled before UAT or PROD.
 
 Install the chart:
 
