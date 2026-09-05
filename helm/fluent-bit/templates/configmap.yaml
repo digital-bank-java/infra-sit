@@ -1,0 +1,165 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fluent-bit.fullname" . }}-config
+  namespace: {{ include "fluent-bit.namespace" . }}
+  labels:
+    {{- include "fluent-bit.labels" . | nindent 4 }}
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush                 1
+        Daemon                Off
+        Log_Level             info
+        Parsers_File          /fluent-bit/etc/parsers.conf
+        HTTP_Server           On
+        HTTP_Listen           0.0.0.0
+        HTTP_PORT             2020
+        Health_Check          On
+        storage.path          {{ .Values.buffer.storagePath }}
+        storage.sync          normal
+        storage.checksum      off
+        storage.backlog.mem_limit {{ .Values.buffer.backlogMemoryLimit }}
+        storage.metrics       on
+
+    [INPUT]
+        Name                  tail
+        Path                  /var/log/containers/*.log
+        Parser                cri
+        Tag                   kube.*
+        Mem_Buf_Limit         50MB
+        Skip_Long_Lines       On
+        Refresh_Interval      10
+        DB                    {{ .Values.buffer.databasePath }}
+        DB.Sync               Normal
+        storage.type          filesystem
+
+    [FILTER]
+        Name                  kubernetes
+        Match                 kube.*
+        Kube_URL              https://kubernetes.default.svc:443
+        Kube_CA_File          /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File       /var/run/secrets/kubernetes.io/serviceaccount/token
+        Kube_Tag_Prefix       kube.var.log.containers.
+        Merge_Log             On
+        Merge_Parser          json
+        Merge_Log_Key         structured
+        Keep_Log              Off
+        K8S-Logging.Parser    Off
+        K8S-Logging.Exclude   On
+
+    [FILTER]
+        Name                  lua
+        Match                 kube.*
+        script                /fluent-bit/scripts/redact.lua
+        call                  process_record
+        time_as_table         true
+
+    [OUTPUT]
+        Name                  opensearch
+        Match                 kube.*
+        Host                  ${OPENSEARCH_HOST}
+        Port                  ${OPENSEARCH_PORT}
+        HTTP_User             ${OPENSEARCH_USERNAME}
+        HTTP_Passwd           ${OPENSEARCH_PASSWORD}
+        tls                   ${OPENSEARCH_TLS}
+        tls.verify            ${OPENSEARCH_TLS_VERIFY}
+        Suppress_Type_Name    On
+        Logstash_Format       On
+        Logstash_Prefix       ${OPENSEARCH_INDEX_PREFIX}
+        Logstash_DateFormat   %Y.%m.%d
+        Replace_Dots          On
+        Retry_Limit           False
+        storage.total_limit_size ${OPENSEARCH_BUFFER_LIMIT}
+
+  parsers.conf: |
+    [PARSER]
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+        Time_Keep   On
+
+    [PARSER]
+        Name   json
+        Format json
+
+  redact.lua: |
+    local sensitive_fragments = {
+      "password", "passwd", "token", "authorization", "secret",
+      "apikey", "clientsecret", "accesstoken", "refreshtoken",
+      "cookie", "setcookie", "ssn", "nationalid", "taxid"
+    }
+
+    local function is_sensitive_key(key)
+      local normalized = string.lower(tostring(key))
+      normalized = string.gsub(normalized, "_", "")
+      normalized = string.gsub(normalized, "%-", "")
+      for _, fragment in ipairs(sensitive_fragments) do
+        if string.find(normalized, fragment, 1, true) then
+          return true
+        end
+      end
+      return false
+    end
+
+    local function redact_string(value)
+      value = string.gsub(value, "[Bb]earer%s+[^%s]+", "Bearer [REDACTED]")
+      value = string.gsub(value, "([Pp]assword%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Tt]oken%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Aa]uthorization%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Ss]ecret%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Aa][Pp][Ii][_][Kk][Ee][Yy]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Aa][Pp][Ii][Kk][Ee][Yy]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Cc][Ll][Ii][Ee][Nn][Tt][_][Ss][Ee][Cc][Rr][Ee][Tt]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      value = string.gsub(value, "([Cc][Ll][Ii][Ee][Nn][Tt][Ss][Ee][Cc][Rr][Ee][Tt]%s*[:=]%s*)[^%s,;]+", "%1[REDACTED]")
+      return value
+    end
+
+    local function redact(value)
+      if type(value) ~= "table" then
+        return value
+      end
+
+      for key, child in pairs(value) do
+        if is_sensitive_key(key) then
+          value[key] = "[REDACTED]"
+        elseif type(child) == "table" then
+          redact(child)
+        elseif type(child) == "string" then
+          value[key] = redact_string(child)
+        end
+      end
+      return value
+    end
+
+    function process_record(tag, timestamp, record)
+      local parsed = record["structured"]
+      if parsed == nil then
+        local raw_log = record["log"]
+        local first_character = ""
+        if type(raw_log) == "string" then
+          first_character = string.match(raw_log, "^%s*(.)") or ""
+        end
+
+        if first_character == "{" then
+          record["logging_parse_status"] = "invalid"
+          record["logging_invalid_event"] = true
+          record["invalid_event_reason"] = "structured_json_parse_failed"
+          record["log"] = "[REDACTED_INVALID_STRUCTURED_LOG]"
+        else
+          record["logging_parse_status"] = "unstructured"
+          record["logging_invalid_event"] = false
+          if type(raw_log) == "string" then
+            record["log"] = redact_string(raw_log)
+          end
+        end
+      else
+        redact(record)
+        record["logging_parse_status"] = "valid"
+        record["logging_invalid_event"] = false
+      end
+      record["logging_agent"] = "fluent-bit"
+      return 1, timestamp, record
+    end

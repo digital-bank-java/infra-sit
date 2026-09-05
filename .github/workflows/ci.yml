@@ -63,6 +63,9 @@ jobs:
       - name: Validate OpenSearch chart
         run: bash tests/validate.sh
 
+      - name: Validate Fluent Bit chart
+        run: bash tests/validate-fluent-bit.sh
+
       - name: Lint Redis chart
         run: helm lint helm/redis --values helm/redis/values-sit.yaml
 
