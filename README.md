@@ -281,9 +281,13 @@ ledger.posting.failed.v1
 ledger.posting.failed.v1.dlq
 events.transfer.created.v1
 events.transfer.created.v1.dlq
+mfa.assurance.granted.v1
+mfa.assurance.granted.v1.dlq
 ```
 
 Notification Service consumes `events.transfer.created.v1` when its SIT consumer flag is enabled. The `.dlq` companion is provisioned for failed event handling.
+
+MFA Service publishes `mfa.assurance.granted.v1` after a transfer-bound challenge succeeds. Transaction Service consumes the assurance event to resume the transfer saga, and the `.dlq` companion supports failed event handling.
 
 Verify topic provisioning:
 
