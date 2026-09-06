@@ -22,6 +22,11 @@ buffer:
   backlogMemoryLimit: 50M
   totalLimitSize: 5G
 
+dockerFallback:
+  enabled: false
+  hostPath: /var/lib/docker/containers
+  databasePath: /var/lib/fluent-bit/docker-tail.db
+
 service:
   type: ClusterIP
   port: 2020

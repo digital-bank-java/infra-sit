@@ -104,6 +104,11 @@ spec:
             - name: varlog
               mountPath: /var/log
               readOnly: true
+            {{- if .Values.dockerFallback.enabled }}
+            - name: docker-containers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            {{- end }}
             - name: fluent-bit-storage
               mountPath: /var/lib/fluent-bit
             - name: tmp
@@ -117,6 +122,12 @@ spec:
           hostPath:
             path: /var/log
             type: Directory
+        {{- if .Values.dockerFallback.enabled }}
+        - name: docker-containers
+          hostPath:
+            path: {{ required "dockerFallback.hostPath is required when Docker fallback is enabled" .Values.dockerFallback.hostPath }}
+            type: Directory
+        {{- end }}
         - name: fluent-bit-storage
           hostPath:
             path: {{ .Values.buffer.storageHostPath }}
