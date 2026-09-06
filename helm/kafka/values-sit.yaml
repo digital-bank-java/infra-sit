@@ -30,6 +30,8 @@ topicProvisioning:
     - events.transfer.created.v1.dlq
     - mfa.assurance.granted.v1
     - mfa.assurance.granted.v1.dlq
+    - payment.instruction.state.v1
+    - payment.instruction.state.v1.dlq
 
 storage:
   size: 1Gi
