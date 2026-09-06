@@ -28,6 +28,10 @@ topicProvisioning:
     - ledger.posting.failed.v1.dlq
     - events.transfer.created.v1
     - events.transfer.created.v1.dlq
+    - events.transfer.completed.v1
+    - events.transfer.completed.v1.dlq
+    - events.transfer.failed.v1
+    - events.transfer.failed.v1.dlq
     - mfa.assurance.granted.v1
     - mfa.assurance.granted.v1.dlq
     - payment.instruction.state.v1
