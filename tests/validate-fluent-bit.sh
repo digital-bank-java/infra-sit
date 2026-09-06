@@ -22,6 +22,8 @@ grep -q 'Retry_Limit           False' "$rendered"
 grep -q 'storage.total_limit_size' "$rendered"
 grep -q 'OPENSEARCH_HOST' "$rendered"
 grep -q 'opensearch-admin' "$rendered"
+grep -A1 'name: OPENSEARCH_TLS$' "$rendered" | grep -q 'value: "On"'
+grep -A1 'name: OPENSEARCH_TLS_VERIFY$' "$rendered" | grep -q 'value: "Off"'
 
 bash "$(dirname "${BASH_SOURCE[0]}")/validate-redaction.sh"
 bash "$(dirname "${BASH_SOURCE[0]}")/validate-fluent-bit-docker.sh"

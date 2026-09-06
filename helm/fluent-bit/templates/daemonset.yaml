@@ -47,9 +47,9 @@ spec:
             - name: OPENSEARCH_PORT
               value: {{ .Values.opensearch.port | quote }}
             - name: OPENSEARCH_TLS
-              value: {{ .Values.opensearch.tls | quote }}
+              value: {{ if .Values.opensearch.tls }}"On"{{ else }}"Off"{{ end }}
             - name: OPENSEARCH_TLS_VERIFY
-              value: {{ .Values.opensearch.tlsVerify | quote }}
+              value: {{ if .Values.opensearch.tlsVerify }}"On"{{ else }}"Off"{{ end }}
             - name: OPENSEARCH_USERNAME
               value: {{ .Values.opensearch.username | quote }}
             - name: OPENSEARCH_INDEX_PREFIX
