@@ -121,6 +121,23 @@ wait_for_auth_route() {
   die "API Gateway Auth route did not become ready after the Auth rollout"
 }
 
+login_fixture() {
+  local attempt response http_status body
+  for attempt in $(seq 1 60); do
+    response="$(curl --silent --show-error --write-out $'\n%{http_code}' \
+      -H 'Content-Type: application/json' \
+      --data "$(jq -nc --arg username "$FIXTURE_USERNAME" --arg password "$FIXTURE_PASSWORD" '{username:$username,password:$password}')" \
+      "$GATEWAY_URL/api/v1/auth/login")" || response=$'\n000'
+    http_status="${response##*$'\n'}"
+    body="${response%$'\n'*}"
+    if [[ "$http_status" == 200 ]] && ACCESS_TOKEN="$(jq -er '.accessToken' <<<"$body" 2>/dev/null)"; then
+      return
+    fi
+    sleep 2
+  done
+  die "fixture login did not become ready after the Auth rollout"
+}
+
 request_transfer() {
   local scenario=$1
   local amount=$2
@@ -311,11 +328,8 @@ unset FIXTURE_HASH
 patch_auth_fixture
 wait_for_auth_route
 
-login_response="$(curl --silent --show-error --fail-with-body -H 'Content-Type: application/json' \
-  --data "$(jq -nc --arg username "$FIXTURE_USERNAME" --arg password "$FIXTURE_PASSWORD" '{username:$username,password:$password}')" \
-  "$GATEWAY_URL/api/v1/auth/login")" || die "fixture login failed"
-ACCESS_TOKEN="$(jq -er '.accessToken' <<<"$login_response")" || die "login response does not contain accessToken"
-unset login_response FIXTURE_PASSWORD
+login_fixture
+unset FIXTURE_PASSWORD
 
 success_transfer_id="$(new_id)"
 success_correlation="transfer-acceptance-success-$(new_id)"
