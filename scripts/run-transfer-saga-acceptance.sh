@@ -73,7 +73,9 @@ cleanup() {
   if [[ -n "$AUTH_SECRET_NAME" ]]; then
     kubectl -n "$NAMESPACE" delete secret "$AUTH_SECRET_NAME" --ignore-not-found >/dev/null 2>&1 || true
   fi
-  rm -f "${RUN_DIR:-}/auth-env-before.json" "${RUN_DIR:-}/kafka-records.txt" 2>/dev/null || true
+  if [[ -n "$RUN_DIR" ]]; then
+    rm -f "$RUN_DIR/auth-env-before.json" "$RUN_DIR/kafka-records.txt" 2>/dev/null || true
+  fi
   unset FIXTURE_PASSWORD ACCESS_TOKEN
   exit "$exit_code"
 }
@@ -266,6 +268,7 @@ for _ in $(seq 1 20); do
   curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/api/v1/auth/login | rg -q '^(405|415)$' && break
   sleep 1
 done
+kill -0 "$PORT_FORWARD_PID" >/dev/null 2>&1 || die "API Gateway port-forward exited before becoming ready"
 GATEWAY_URL="http://127.0.0.1:18080"
 gateway_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$GATEWAY_URL/internal/v1/transfer-workflows/00000000-0000-0000-0000-000000000000")"
 [[ "$gateway_status" == 401 || "$gateway_status" == 403 ]] || die "gateway does not expose the governed transfer workflow route"
