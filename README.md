@@ -174,6 +174,20 @@ kubectl exec -n digital-bank-sit statefulset/postgres -- \
 These are query-only commands. The controlled Job is the sole mechanism for
 creating the fixture data; do not modify these records from a workstation.
 
+## Transfer Saga Acceptance Runner
+
+The guarded local-SIT runner uses the fixture through the normal gateway,
+Kafka, and service contracts. It has a non-mutating inspection mode:
+
+```bash
+scripts/run-transfer-saga-acceptance.sh --help
+scripts/run-transfer-saga-acceptance.sh --dry-run
+```
+
+See [docs/transfer-saga-acceptance.md](docs/transfer-saga-acceptance.md) for
+the controlled execution boundary, runtime prerequisites, cleanup behavior,
+and redacted evidence policy.
+
 ## MFA Service SIT Secret
 
 MFA Service requires the externally managed `mfa-service-secrets` Kubernetes
