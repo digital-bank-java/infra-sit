@@ -29,6 +29,7 @@ This repository owns shared infrastructure used to run the integrated local SIT 
 | Fluent Bit | `helm/fluent-bit` | Local SIT Kubernetes log collector that enriches, redacts, buffers, and forwards logs to OpenSearch. |
 | OpenSearch and OpenSearch Dashboards | `helm/opensearch` | Local SIT search and dashboard workloads for future centralized logging. |
 | Redis | `helm/redis` | Shared local SIT state store for API Gateway rate limiting and resilience coordination. |
+| Transfer acceptance fixture | `helm/transfer-acceptance-fixture` | Disabled-by-default, synthetic local SIT opening position for the transfer acceptance run. |
 
 ## Repository Model
 
@@ -133,6 +134,45 @@ initializer and an idempotent Helm post-install/post-upgrade reconciliation
 Job. The reconciliation step is important when the StatefulSet already has a
 persistent volume: changing the values list alone would not cause PostgreSQL's
 first-boot scripts to run again.
+
+## Transfer Acceptance Fixture
+
+`helm/transfer-acceptance-fixture` is a temporary, local Docker Desktop SIT
+fixture for the transfer acceptance run. It renders no resources by default.
+When explicitly enabled, its Job references the existing `postgres` Secret at
+runtime and seeds fixed synthetic customer, account, and opening-ledger data.
+It does not render or print the Secret values, expose a balance-change API, or
+perform updates or deletes against financial data.
+
+Run it only for a controlled acceptance execution:
+
+```bash
+helm upgrade --install transfer-acceptance-fixture helm/transfer-acceptance-fixture \
+  --namespace digital-bank-sit \
+  --values helm/transfer-acceptance-fixture/values-sit.yaml \
+  --set fixtures.enabled=true \
+  --wait \
+  --timeout 5m
+```
+
+After the Job completes, verify the synthetic records with read-only queries:
+
+```bash
+kubectl exec -n digital-bank-sit statefulset/postgres -- \
+  psql --username postgres --dbname customer_service --tuples-only --no-align \
+  --command "SELECT customer_id, email FROM customers WHERE customer_id IN ('26100000-0000-4000-8000-000000000001', '26100000-0000-4000-8000-000000000002') ORDER BY customer_id;"
+
+kubectl exec -n digital-bank-sit statefulset/postgres -- \
+  psql --username postgres --dbname account_service --tuples-only --no-align \
+  --command "SELECT id, current_balance, available_balance FROM accounts WHERE id = '26100000-0000-4000-8000-000000000101';"
+
+kubectl exec -n digital-bank-sit statefulset/postgres -- \
+  psql --username postgres --dbname ledger_service --tuples-only --no-align \
+  --command "SELECT e.id, SUM(CASE WHEN l.line_type = 'DEBIT' THEN l.amount ELSE -l.amount END) AS balance FROM ledger_entries e JOIN ledger_entry_lines l ON l.entry_id = e.id WHERE e.id = '26100000-0000-4000-8000-000000000201' GROUP BY e.id;"
+```
+
+These are query-only commands. The controlled Job is the sole mechanism for
+creating the fixture data; do not modify these records from a workstation.
 
 ## MFA Service SIT Secret
 
