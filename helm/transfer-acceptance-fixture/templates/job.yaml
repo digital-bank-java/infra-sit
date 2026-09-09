@@ -1,0 +1,52 @@
+{{- if .Values.fixtures.enabled }}
+{{- include "transfer-acceptance-fixture.requireSitNamespace" . }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "transfer-acceptance-fixture.name" . }}
+  namespace: {{ include "transfer-acceptance-fixture.namespace" . }}
+  labels:
+    {{- include "transfer-acceptance-fixture.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.job.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "transfer-acceptance-fixture.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PGHOST
+              value: {{ .Values.postgres.host | quote }}
+            - name: PGPORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: POSTGRES_PASSWORD
+          envFrom:
+            - secretRef:
+                name: {{ .Values.postgres.existingSecret }}
+          command:
+            - sh
+            - -ec
+            - |
+              psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --file /fixture/seed.sql
+          volumeMounts:
+            - name: fixture-sql
+              mountPath: /fixture
+              readOnly: true
+      volumes:
+        - name: fixture-sql
+          configMap:
+            name: {{ include "transfer-acceptance-fixture.name" . }}-sql
+{{- end -}}

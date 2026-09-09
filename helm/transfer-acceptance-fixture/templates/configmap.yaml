@@ -1,0 +1,52 @@
+{{- if .Values.fixtures.enabled }}
+{{- include "transfer-acceptance-fixture.requireSitNamespace" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "transfer-acceptance-fixture.name" . }}-sql
+  namespace: {{ include "transfer-acceptance-fixture.namespace" . }}
+  labels:
+    {{- include "transfer-acceptance-fixture.labels" . | nindent 4 }}
+data:
+  seed.sql: |
+    \set ON_ERROR_STOP on
+
+    \connect customer_service
+    INSERT INTO customers (
+      customer_id, email, mobile_number, first_name, last_name, date_of_birth,
+      status, version, created_at, updated_at
+    ) VALUES
+      ('26100000-0000-4000-8000-000000000001', 'sit.transfer.source@example.test', '+971500000261', 'SIT', 'TransferSource', '1990-01-01', 'ACTIVE', 0, '2026-09-09T00:00:00Z', '2026-09-09T00:00:00Z'),
+      ('26100000-0000-4000-8000-000000000002', 'sit.transfer.destination@example.test', '+971500000262', 'SIT', 'TransferDestination', '1991-01-01', 'ACTIVE', 0, '2026-09-09T00:00:00Z', '2026-09-09T00:00:00Z')
+    ON CONFLICT DO NOTHING;
+
+    \connect account_service
+    INSERT INTO accounts (
+      id, customer_id, account_number, iban, account_type, currency, status,
+      current_balance, available_balance, opening_request_id, version, created_at, updated_at, closed_at
+    ) VALUES
+      ('26100000-0000-4000-8000-000000000101', '26100000-0000-4000-8000-000000000001', 'SIT-261-SOURCE-AED', NULL, 'CURRENT', 'AED', 'ACTIVE', 1000.0000, 1000.0000, 'sit-transfer-acceptance-source-opening-v1', 0, '2026-09-09T00:00:00Z', '2026-09-09T00:00:00Z', NULL),
+      ('26100000-0000-4000-8000-000000000102', '26100000-0000-4000-8000-000000000002', 'SIT-261-DESTINATION-AED', NULL, 'CURRENT', 'AED', 'ACTIVE', 0.0000, 0.0000, 'sit-transfer-acceptance-destination-opening-v1', 0, '2026-09-09T00:00:00Z', '2026-09-09T00:00:00Z', NULL),
+      ('26100000-0000-4000-8000-000000000103', '26100000-0000-4000-8000-000000000001', 'SIT-261-CLEARING-AED', NULL, 'CURRENT', 'AED', 'ACTIVE', 0.0000, 0.0000, 'sit-transfer-acceptance-clearing-opening-v1', 0, '2026-09-09T00:00:00Z', '2026-09-09T00:00:00Z', NULL)
+    ON CONFLICT DO NOTHING;
+
+    \connect ledger_service
+    BEGIN;
+    INSERT INTO ledger_entries (
+      id, posting_request_id, description, currency, effective_at, created_at
+    ) VALUES (
+      '26100000-0000-4000-8000-000000000201',
+      'sit-transfer-acceptance-opening-v1',
+      'SIT transfer acceptance fixture opening position',
+      'AED',
+      '2026-09-09T00:00:00Z',
+      '2026-09-09T00:00:00Z'
+    ) ON CONFLICT DO NOTHING;
+
+    INSERT INTO ledger_entry_lines (entry_id, line_number, account_id, line_type, amount)
+    VALUES
+      ('26100000-0000-4000-8000-000000000201', 1, '26100000-0000-4000-8000-000000000103', 'DEBIT', 1000.0000),
+      ('26100000-0000-4000-8000-000000000201', 2, '26100000-0000-4000-8000-000000000101', 'CREDIT', 1000.0000)
+    ON CONFLICT DO NOTHING;
+    COMMIT;
+{{- end -}}

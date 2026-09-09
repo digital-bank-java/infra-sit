@@ -28,6 +28,10 @@ helm lint helm/postgres --values helm/postgres/values-sit.yaml
 helm template postgres helm/postgres --values helm/postgres/values-sit.yaml
 helm upgrade --install postgres helm/postgres --namespace digital-bank-sit --create-namespace --values helm/postgres/values-sit.yaml
 
+helm lint helm/transfer-acceptance-fixture --values helm/transfer-acceptance-fixture/values-sit.yaml
+helm template transfer-acceptance-fixture helm/transfer-acceptance-fixture --values helm/transfer-acceptance-fixture/values-sit.yaml
+helm template transfer-acceptance-fixture helm/transfer-acceptance-fixture --values helm/transfer-acceptance-fixture/values-sit.yaml --set fixtures.enabled=true
+
 helm lint helm/kafka --values helm/kafka/values-sit.yaml
 helm template kafka helm/kafka --values helm/kafka/values-sit.yaml
 helm upgrade --install kafka helm/kafka --namespace digital-bank-sit --create-namespace --values helm/kafka/values-sit.yaml
@@ -88,3 +92,4 @@ UAT and PROD should use a managed Redis-compatible service such as Amazon Elasti
 - Keep infrastructure changes small and explicit.
 - Do not hide service-specific application settings here.
 - If a service needs a new shared database or infrastructure dependency, add a supporting issue first.
+- The transfer acceptance fixture is local SIT-only and must remain disabled unless explicitly enabled for a controlled acceptance run.
