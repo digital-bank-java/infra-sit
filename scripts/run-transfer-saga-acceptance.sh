@@ -106,6 +106,21 @@ wait_for_transfer_status() {
   die "transfer $transfer_id did not reach $expected_status"
 }
 
+wait_for_auth_route() {
+  local attempt http_status
+  for attempt in $(seq 1 60); do
+    http_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+      -H 'Content-Type: application/json' \
+      --data '{"username":"acceptance-route-probe","password":"invalid"}' \
+      "$GATEWAY_URL/api/v1/auth/login")" || http_status=000
+    case "$http_status" in
+      400|401|422) return ;;
+    esac
+    sleep 2
+  done
+  die "API Gateway Auth route did not become ready after the Auth rollout"
+}
+
 request_transfer() {
   local scenario=$1
   local amount=$2
@@ -294,6 +309,7 @@ kubectl -n "$NAMESPACE" create secret generic "$AUTH_SECRET_NAME" \
   --from-literal=fixture-password-hash="$FIXTURE_HASH" >/dev/null
 unset FIXTURE_HASH
 patch_auth_fixture
+wait_for_auth_route
 
 login_response="$(curl --silent --show-error --fail-with-body -H 'Content-Type: application/json' \
   --data "$(jq -nc --arg username "$FIXTURE_USERNAME" --arg password "$FIXTURE_PASSWORD" '{username:$username,password:$password}')" \
