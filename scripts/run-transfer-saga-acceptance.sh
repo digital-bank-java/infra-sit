@@ -181,7 +181,7 @@ capture_ledger_offset() {
       --from-beginning --timeout-ms 10000 \
       --property print.partition=true --property print.offset=true --property print.value=true \
       > "$RUN_DIR/kafka-records.txt"
-  record="$(rg -m1 "\"correlationId\":\"$correlation_id\"" "$RUN_DIR/kafka-records.txt" || true)"
+  record="$(rg -m1 "\"correlationId\"[[:space:]]*:[[:space:]]*\"$correlation_id\"" "$RUN_DIR/kafka-records.txt" || true)"
   [[ -n "$record" ]] || die "cannot locate the original ledger completion record for $correlation_id"
   partition="$(sed -n 's/.*Partition:[[:space:]]*\([0-9][0-9]*\).*/\1/p' <<<"$record")"
   offset="$(sed -n 's/.*Offset:[[:space:]]*\([0-9][0-9]*\).*/\1/p' <<<"$record")"
