@@ -279,6 +279,24 @@ kafka:9092
 
 Redis is shared local SIT infrastructure for gateway rate limiting and resilience state. It is not exposed outside the cluster.
 
+Create the local SIT password outside Git before installing or upgrading Redis. Do not
+put the value in Helm values, shell history, or a committed file:
+
+```bash
+read -r -s REDIS_PASSWORD
+export REDIS_PASSWORD
+kubectl create secret generic redis \
+  --namespace digital-bank-sit \
+  --from-literal=REDIS_PASSWORD="$REDIS_PASSWORD" \
+  --dry-run=client \
+  --output=yaml | kubectl apply -f -
+unset REDIS_PASSWORD
+```
+
+The Redis chart reads the REDIS_PASSWORD key from this existing Secret. Its
+NetworkPolicy permits Redis traffic only from API Gateway pods in
+digital-bank-sit; other workloads must not connect directly to Redis.
+
 ```bash
 helm upgrade --install redis helm/redis \
   --namespace digital-bank-sit \

@@ -14,6 +14,16 @@ redis:
   maxmemory: "256mb"
   maxmemoryPolicy: noeviction
 
+auth:
+  existingSecret: redis
+  secretKey: REDIS_PASSWORD
+
+networkPolicy:
+  enabled: true
+  allowedNamespace: ""
+  allowedPodSelector:
+    app.kubernetes.io/name: api-gateway
+
 storage:
   size: 1Gi
 
