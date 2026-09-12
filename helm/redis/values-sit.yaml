@@ -10,5 +10,13 @@ redis:
   maxmemory: "256mb"
   maxmemoryPolicy: noeviction
 
+auth:
+  existingSecret: redis
+  secretKey: REDIS_PASSWORD
+
+networkPolicy:
+  enabled: true
+  allowedNamespace: digital-bank-sit
+
 storage:
   size: 1Gi

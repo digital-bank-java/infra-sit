@@ -36,12 +36,25 @@ spec:
             capabilities:
               drop:
                 - ALL
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.secretKey | quote }}
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.secretKey | quote }}
           ports:
             - name: redis
               containerPort: {{ .Values.service.port }}
           args:
             - redis-server
             - /tmp/redis.conf
+            - --requirepass
+            - $(REDIS_PASSWORD)
           readinessProbe:
             exec:
               command:
