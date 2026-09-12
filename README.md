@@ -334,14 +334,22 @@ account.reservation.released.v1
 account.reservation.released.v1.dlq
 account.reservation.expired.v1
 account.reservation.expired.v1.dlq
+ledger.posting.requested.v1
+ledger.posting.requested.v1.dlq
 ledger.posting.completed.v1
 ledger.posting.completed.v1.dlq
 ledger.posting.failed.v1
 ledger.posting.failed.v1.dlq
 events.transfer.created.v1
 events.transfer.created.v1.dlq
+events.transfer.completed.v1
+events.transfer.completed.v1.dlq
+events.transfer.failed.v1
+events.transfer.failed.v1.dlq
 mfa.assurance.granted.v1
 mfa.assurance.granted.v1.dlq
+payment.instruction.state.v1
+payment.instruction.state.v1.dlq
 ```
 
 Notification Service consumes `events.transfer.created.v1` when its SIT consumer flag is enabled. The `.dlq` companion is provisioned for failed event handling.
