@@ -2,13 +2,16 @@
 set -euo pipefail
 
 chart_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../helm/opensearch" && pwd)"
-rendered="$(mktemp)"
-trap 'rm -f "$rendered"' EXIT
-
-helm lint "$chart_dir" --values "$chart_dir/values-sit.yaml"
-helm template opensearch "$chart_dir" \
-  --namespace digital-bank-sit \
-  --values "$chart_dir/values-sit.yaml" > "$rendered"
+if [ -n "${RENDERED_FILE:-}" ]; then
+  rendered="$RENDERED_FILE"
+else
+  rendered="$(mktemp)"
+  trap 'rm -f "$rendered"' EXIT
+  helm lint "$chart_dir" --values "$chart_dir/values-sit.yaml"
+  helm template opensearch "$chart_dir" \
+    --namespace digital-bank-sit \
+    --values "$chart_dir/values-sit.yaml" > "$rendered"
+fi
 
 test "$(grep -c 'name: OPENSEARCH_DASHBOARDS_PASSWORD' "$rendered")" -eq 2
 grep -q 'opensearch.username: "kibanaserver"' "$rendered"

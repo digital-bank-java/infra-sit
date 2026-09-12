@@ -58,9 +58,11 @@ jobs:
         run: helm lint helm/opensearch --values helm/opensearch/values-sit.yaml
 
       - name: Render OpenSearch chart
-        run: helm template opensearch helm/opensearch --values helm/opensearch/values-sit.yaml --namespace digital-bank-sit
+        run: helm template opensearch helm/opensearch --values helm/opensearch/values-sit.yaml --namespace digital-bank-sit > /tmp/opensearch-rendered.yaml
 
       - name: Validate OpenSearch chart
+        env:
+          RENDERED_FILE: /tmp/opensearch-rendered.yaml
         run: bash tests/validate.sh
 
       - name: Validate Fluent Bit chart
