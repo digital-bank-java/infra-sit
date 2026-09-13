@@ -10,7 +10,6 @@ data:
     micronaut:
       security:
         enabled: false
-    micronaut.security.token.jwt.signatures.secret.generator.secret: "local-sit-akhq-development-only-secret-do-not-use-in-production"
 
     akhq:
       connections:
